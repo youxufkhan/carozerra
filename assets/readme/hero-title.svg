@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="300" viewBox="0 0 1200 300"
+     role="img" aria-labelledby="title desc">
+  <title id="title">Carozerra</title>
+  <desc id="desc">Decode forgotten Pioneer car-stereo .lkd animations and watch them glow again, live in a browser or as a Linux desktop visualizer.</desc>
+
+  <defs>
+    <linearGradient id="scan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#12e0ff" stop-opacity="0"/>
+      <stop offset="12%" stop-color="#12e0ff" stop-opacity="0.9"/>
+      <stop offset="88%" stop-color="#079eaf" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#079eaf" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="100%" cy="45%" r="75%">
+      <stop offset="0%" stop-color="#079eaf" stop-opacity="0.16"/>
+      <stop offset="60%" stop-color="#079eaf" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#079eaf" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="scanlines" width="1" height="3" patternUnits="userSpaceOnUse">
+      <rect width="1" height="1.5" fill="#12e0ff" fill-opacity="0.05"/>
+    </pattern>
+    <linearGradient id="fadeIn" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="1"/>
+    </linearGradient>
+    <mask id="fadeMask">
+      <rect x="500" width="700" height="300" fill="url(#fadeIn)"/>
+    </mask>
+    <clipPath id="card"><rect width="1200" height="300" rx="20"/></clipPath>
+  </defs>
+
+  <rect width="1200" height="300" rx="20" fill="#000000"/>
+  <g clip-path="url(#card)">
+    <rect x="500" width="700" height="300" fill="url(#glow)"/>
+    <rect x="500" width="700" height="300" fill="url(#scanlines)" mask="url(#fadeMask)"/>
+  </g>
+
+  <g id="eyebrow" transform="translate(64 54)">
+    <text x="0" y="0" font-family="ui-monospace,SFMono-Regular,Menlo,monospace"
+          font-size="14" letter-spacing="2.5" fill="#5f6c78">PIONEER OEL DISPLAY &#183; REVERSE-ENGINEERED .LKD DECODER</text>
+  </g>
+
+  <g id="title-block" transform="translate(64 128)">
+    <text x="0" y="0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
+          font-size="64" font-weight="700" fill="#f2f6f8">Carozerra</text>
+  </g>
+
+  <rect x="64" y="150" width="360" height="3" fill="url(#scan)"/>
+
+  <g id="tagline" transform="translate(64 190)">
+    <text x="0" y="0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
+          font-size="21" fill="#c7d2da">Decode forgotten Pioneer car-stereo animations and watch them glow again —</text>
+    <text x="0" y="30" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
+          font-size="21" fill="#c7d2da">live in your browser, or as a Linux desktop visualizer.</text>
+  </g>
+
+  <g id="tags" transform="translate(64 250)" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="13" letter-spacing="0.5">
+    <g>
+      <rect x="0" y="-19" width="128" height="27" rx="14" fill="none" stroke="#12e0ff" stroke-opacity="0.55"/>
+      <text x="16" y="0" fill="#12e0ff">WEB PLAYER</text>
+    </g>
+    <g transform="translate(144 0)">
+      <rect x="0" y="-19" width="156" height="27" rx="14" fill="none" stroke="#12e0ff" stroke-opacity="0.55"/>
+      <text x="16" y="0" fill="#12e0ff">LINUX APP (.DEB)</text>
+    </g>
+    <g transform="translate(316 0)">
+      <rect x="0" y="-19" width="138" height="27" rx="14" fill="none" stroke="#5f6c78"/>
+      <text x="16" y="0" fill="#9aa7b3">ZLKD DECODER</text>
+    </g>
+  </g>
+</svg>

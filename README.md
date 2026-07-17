@@ -1,63 +1,73 @@
-# Carozerra
+<p align="center">
+  <img src="./assets/readme/hero-title.svg" width="100%" alt="Carozerra — decode forgotten Pioneer car-stereo .lkd animations and watch them glow again, live in a browser or as a Linux desktop visualizer.">
+</p>
 
-Pioneer car-stereo OEL display animations, decoded and brought back to life —
-a web player, a Linux desktop visualizer, and the reverse-engineered `.lkd`
-format they're both built on.
+<p align="center">
+  <a href="https://github.com/youxufkhan/carozerra/releases/latest"><img src="https://img.shields.io/github/v/release/youxufkhan/carozerra?label=release&color=12e0ff" alt="Latest release"></a>
+  <a href="https://youxufkhan.github.io/carozerra/"><img src="https://img.shields.io/badge/demo-live-12e0ff" alt="Live demo"></a>
+</p>
 
-Old Pioneer head units (e.g. the DEH-P7600MP) let you upload custom
-animations to their blue OEL display via CD or PC link, stored as `.lkd`
-files. This repo decodes them and recreates the look on both the web and the
-desktop.
+<p align="center">
+  <a href="https://youxufkhan.github.io/carozerra/">
+    <img src="./assets/readme/proof-web.png" width="100%" alt="The live web player: a Pioneer DEH-P7600MP faceplate with a decoded .lkd animation glowing cyan on its OEL screen">
+  </a>
+</p>
 
-*(This repository is private.)*
+<p align="center"><sub>Live and playing right now at <a href="https://youxufkhan.github.io/carozerra/">youxufkhan.github.io/carozerra</a> — click the image, no install.</sub></p>
 
-## Repo layout
+## What it is
+
+Old Pioneer head units (e.g. the DEH-P7600MP) let you upload custom animations
+to their blue OEL display via CD or PC link, stored as `.lkd` files no modern
+software could open. Carozerra decodes them and brings the look back — on the
+web or on a Linux desktop, with the stereo's own controls doing real things.
+
+## How the format works
+
+`.lkd` turned out to be a thin wrapper around **entirely standard formats** —
+no proprietary codec, no guesswork left in the pipeline:
 
 ```
-carozerra/
-├── web/                # GitHub Pages player — decodes .lkd fully client-side
-│   └── index.html
-├── carozerra.py         # Linux desktop visualizer (PyQt6)
-├── decode.py             # .lkd decoder — CLI + importable library
-├── assets/
-│   ├── pioneer.png        # faceplate cutout, shared by web + desktop
-│   └── clips/              # the 8 preloaded .lkd animations
-├── reference/              # provenance only — not used by any code
-│   ├── pioneer-original.jpeg
-│   └── 1.gif
-├── packaging/
-│   ├── build-deb.sh         # -> packaging/dist/carozerra_<version>_all.deb
-│   └── debian/                # control file template + .desktop entry
-└── .github/workflows/
-    ├── pages.yml               # deploys web/ whenever web/** or assets/** change
-    ├── packaging-check.yml      # build-validates the .deb whenever app/packaging files change
-    └── release.yml               # builds + attaches the .deb to a GitHub Release on every v* tag
+offset  bytes
+0x00    "zLKD"   magic (7A 4C 4B 44)
+0x04    uint32   version           = 3
+0x08    uint32   (unknown)         = 1
+0x0C    uint32   (unknown)         = 7
+0x10    uint32   frame count       = 60
+0x14    gzip stream ──▶ gunzip ──▶ TAR archive
+                         └─ one member = a 24-bit Windows BMP
+                            BMP = 256 × 3840, bottom-up, BGR
+                                = 60 stacked frames of 256 × 64
 ```
+
+Strip the 20-byte header → `gunzip` → `tar` → read the BMP → slice it into 60
+frames of **256 × 64**. Native palette is cyan-blue `rgb(7,158,175)` + white on
+black — the classic blue-OEL glow — and artwork is dithered (mountains,
+waterfalls, leaping dolphins, etc.).
 
 ## Web player
 
-Live at **https://youxufkhan.github.io/carozerra/** (deploys automatically
-from `web/` via `pages.yml`).
-
-Open it and the Pioneer DEH-P7600MP faceplate renders with the animation
-playing right on its OEL screen. All 8 built-in clips are preloaded and
+Decodes fully client-side — `DecompressionStream` for gzip, an inline tar
+reader, a BMP parser to canvas. All 8 built-in clips are preloaded and
 selectable via chips; drag-and-drop (or click) still lets you load any other
-`.lkd` file — nothing is uploaded anywhere, everything decodes in your
-browser (`DecompressionStream` for gzip, an inline tar reader, a BMP parser
-to canvas). Controls: play/pause, speed, retro-glow toggle, frame scrubber.
+`.lkd` file — nothing is uploaded anywhere.
 
 > Requires a browser with `DecompressionStream` (current Chrome/Firefox/Edge).
 
 To preview locally: `python3 -m http.server -d web 8000`, then open
 `http://localhost:8000`. (`assets/pioneer.png` and `assets/clips/*.lkd` need
 to be copied into `web/pioneer.png` / `web/clips/` first — the CI workflow
-does this automatically at deploy time; see `pages.yml`.)
+does this automatically at deploy time; see `.github/workflows/pages.yml`.)
 
 ## Desktop app (Linux / Debian)
 
 A frameless, transparent, stereo-shaped window: the faceplate floats on your
 desktop and animations play on its OEL screen, with the stereo's own
 controls wired to real actions.
+
+<p align="center">
+  <img src="./assets/readme/proof-desktop.png" width="100%" alt="The Linux desktop app: the same Pioneer faceplate floating as a transparent window, playing a dolphin animation">
+</p>
 
 | Control | Action |
 |---|---|
@@ -93,33 +103,6 @@ Geometry (screen rect, knob centers, button hitboxes) lives in the `G` dict
 at the top of `carozerra.py` as fractions of the faceplate, so it scales with
 the window and is easy to re-tune against a different photo.
 
-## The `.lkd` format (reverse-engineered)
-
-An `.lkd` file is a thin wrapper around **entirely standard formats**:
-
-```
-offset  bytes
-0x00    "zLKD"   magic (7A 4C 4B 44)
-0x04    uint32   version           = 3
-0x08    uint32   (unknown)         = 1
-0x0C    uint32   (unknown)         = 7
-0x10    uint32   frame count       = 60
-0x14    gzip stream ──▶ gunzip ──▶ TAR archive
-                         └─ one member = a 24-bit Windows BMP
-                            BMP = 256 × 3840, bottom-up, BGR
-                                = 60 stacked frames of 256 × 64
-```
-
-So decoding is just: strip the 20-byte header → `gunzip` → `tar` → read the
-BMP → slice it into 60 frames of **256 × 64**. No proprietary codec is
-involved.
-
-- Native frame: **256 × 64**, 60 frames, ~**60 ms/frame** (matches
-  `reference/1.gif`, the low-res preview used to verify frame order/timing
-  during reverse-engineering).
-- Palette: cyan-blue `rgb(7,158,175)` + white on black — the classic blue-OEL
-  glow. Artwork is dithered (mountains, waterfalls, leaping dolphins, etc.).
-
 ## `decode.py` — batch converter
 
 ```bash
@@ -151,3 +134,30 @@ automatically. To build locally without releasing:
 packaging/build-deb.sh 1.1.0
 # -> packaging/dist/carozerra_1.1.0_all.deb
 ```
+
+<details>
+<summary>Repo layout</summary>
+
+```
+carozerra/
+├── web/                # GitHub Pages player — decodes .lkd fully client-side
+│   └── index.html
+├── carozerra.py         # Linux desktop visualizer (PyQt6)
+├── decode.py             # .lkd decoder — CLI + importable library
+├── assets/
+│   ├── pioneer.png        # faceplate cutout, shared by web + desktop
+│   ├── clips/               # the 8 preloaded .lkd animations
+│   └── readme/                # this README's hero SVG + proof screenshots
+├── reference/              # provenance only — not used by any code
+│   ├── pioneer-original.jpeg
+│   └── 1.gif
+├── packaging/
+│   ├── build-deb.sh         # -> packaging/dist/carozerra_<version>_all.deb
+│   └── debian/                # control file template + .desktop entry
+└── .github/workflows/
+    ├── pages.yml               # deploys web/ whenever web/** or assets/** change
+    ├── packaging-check.yml      # build-validates the .deb whenever app/packaging files change
+    └── release.yml               # builds + attaches the .deb to a GitHub Release on every v* tag
+```
+
+</details>
