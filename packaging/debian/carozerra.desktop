@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Carozerra
+Comment=Pioneer OEL stereo music visualizer
+Exec=/usr/bin/carozerra
+Icon=/usr/share/pixmaps/carozerra.png
+Terminal=false
+Categories=AudioVideo;Player;
+StartupWMClass=Carozerra

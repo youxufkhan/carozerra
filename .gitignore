@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+
+# generated preview exports (regenerate via `python decode.py`)
+out/
+
+# packaging build output
+packaging/dist/
+packaging/build/
+*.deb
+
+# web/ assets are staged from assets/ at deploy time (see .github/workflows/pages.yml)
+# and for local preview (see README) — not duplicated in git.
+web/pioneer.png
+web/clips/
+
+# OS
+.DS_Store

@@ -1,0 +1,14 @@
+Package: carozerra
+Version: __VERSION__
+Section: sound
+Priority: optional
+Architecture: all
+Depends: python3 (>= 3.10), python3-pyqt6, python3-pil, python3-numpy, wireplumber | pulseaudio-utils
+Maintainer: Carozerra <amanbashir601@gmail.com>
+Homepage: https://github.com/youxufkhan/carozerra
+Description: Pioneer DEH-P7600MP OEL stereo visualizer
+ A frameless, transparent, stereo-shaped desktop app that recreates a
+ Pioneer car-stereo OEL display and plays decoded .lkd animations on it.
+ The stereo's own controls work: presets switch clips, the volume knob
+ sets system volume, the nav knob switches clips and animation speed,
+ FUNC toggles retro glow, and ESC quits.

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carozerra — Pioneer OEL .lkd Player</title>
+<style>
+  :root{ --oel:#12e0ff; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; min-height:100vh; background:#000; color:#c7d2da;
+    font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;
+    display:flex; flex-direction:column; align-items:center; gap:18px; padding:26px 14px; }
+  h1{ font-size:17px; font-weight:600; margin:0; letter-spacing:.4px; }
+  h1 span{ color:var(--oel); }
+  .sub{ color:#5f6c78; font-size:12px; margin-top:-12px; }
+
+  .stage{ position:relative; width:min(1120px,97vw); user-select:none; }
+  .stage .face{ width:100%; display:block; border-radius:6px; }
+  .oel{ position:absolute; left:23.3%; top:40.4%; width:44.9%; height:18.1%;
+    overflow:hidden; background:#000; }
+  .oel canvas{ position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated; }
+  .oel #glow{ opacity:0; filter:blur(3px) brightness(1.7) saturate(1.15); mix-blend-mode:screen; transition:opacity .2s; }
+  .oel .scan{ position:absolute; inset:0; pointer-events:none; opacity:0;
+    background:repeating-linear-gradient(#0000 0 1.5px,#0007 1.5px 3px); transition:opacity .2s; }
+  .oel .inner{ position:absolute; inset:0; pointer-events:none; opacity:0;
+    box-shadow:inset 0 0 14px #000b; transition:opacity .2s; }
+  .oel.fx #glow{ opacity:.9; }
+  .oel.fx .scan{ opacity:.5; }
+  .oel.fx .inner{ opacity:1; }
+
+  .controls{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; justify-content:center;
+    width:min(1120px,97vw); }
+  button{ background:#1b232c; color:#dbe4ea; border:1px solid #2c3742; border-radius:8px;
+    padding:8px 14px; cursor:pointer; font-size:13px; }
+  button:hover{ border-color:var(--oel); color:var(--oel); }
+  label{ display:flex; gap:6px; align-items:center; color:#9aa7b3; }
+  input[type=range]{ accent-color:var(--oel); }
+  .meta{ color:#5f6c78; font-size:12px; min-height:16px; }
+  .files{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:1120px; }
+  .chip{ background:#141a21; border:1px solid #263039; border-radius:20px; padding:4px 12px;
+    font-size:12px; cursor:pointer; color:#9aa7b3; }
+  .chip.active{ border-color:var(--oel); color:var(--oel); }
+  .drop{ width:min(1120px,97vw); height:74px; border:2px dashed #33404c; border-radius:12px;
+    display:flex; align-items:center; justify-content:center; color:#6b7987; cursor:pointer; transition:.15s; }
+  .drop.over{ border-color:var(--oel); color:var(--oel); background:#12e0ff10; }
+</style>
+</head>
+<body>
+  <h1>Carozerra <span>.lkd</span> Player</h1>
+  <div class="sub">the animation plays on the head-unit's blue OEL screen — decoded in your browser</div>
+
+  <div class="stage">
+    <img class="face" alt="Pioneer DEH-P7600MP" src="pioneer.png">
+    <div class="oel fx" id="oel">
+      <canvas id="glow" width="256" height="64"></canvas>
+      <canvas id="screen" width="256" height="64"></canvas>
+      <div class="scan"></div>
+      <div class="inner"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="play">⏸ Pause</button>
+    <label>Speed <input type="range" id="fps" min="4" max="30" value="16" step="1"><span id="fpsv">16fps</span></label>
+    <label><input type="checkbox" id="fx" checked> Retro glow</label>
+    <label>Frame <input type="range" id="scrub" min="0" max="59" value="0" style="width:160px"><span id="scrubv">0</span></label>
+  </div>
+  <div class="meta" id="meta">loading…</div>
+  <div class="files" id="files"></div>
+
+  <div class="drop" id="drop">Drop a <code>.lkd</code> here, or click to choose (adds to the list above)
+    <input type="file" id="file" accept=".lkd" multiple hidden>
+  </div>
+
+<script>
+// preloaded from clips/ — same 8 animations shipped with the desktop app
+const BUILTIN_CLIPS = [
+  "movie1.lkd", "movie2.lkd", "movie3.lkd", "movie6.lkd",
+  "movie7.lkd", "movie8_f.lkd", "movie9_f.lkd", "movie10_f.lkd",
+];
+
+const $=s=>document.querySelector(s);
+const oel=$('#oel'), sc=$('#screen'), gl=$('#glow');
+const sctx=sc.getContext('2d'), gctx=gl.getContext('2d');
+sctx.imageSmoothingEnabled=false; gctx.imageSmoothingEnabled=false;
+
+let strip=null, FW=256, FH=64, N=60, cur=0, playing=true, fps=16, lastT=0;
+const loaded={};
+
+function u32(dv,o){ return dv.getUint32(o,true); }
+
+async function decodeLKD(buf){
+  const dv=new DataView(buf);
+  const magic=String.fromCharCode(dv.getUint8(0),dv.getUint8(1),dv.getUint8(2),dv.getUint8(3));
+  if(magic!=='zLKD') throw new Error('not a zLKD file');
+  const frameCount=u32(dv,16);
+  const ds=new DecompressionStream('gzip');
+  const tarBuf=await new Response(new Blob([buf.slice(20)]).stream().pipeThrough(ds)).arrayBuffer();
+  const t=new Uint8Array(tarBuf);
+  const size=parseInt(new TextDecoder().decode(t.subarray(124,136)).replace(/\0.*/,'').trim(),8);
+  const bmp=tarBuf.slice(512,512+size);
+  return {frameCount, canvas:bmpToCanvas(bmp)};
+}
+
+function bmpToCanvas(bmp){
+  const dv=new DataView(bmp);
+  const dataOff=u32(dv,10), w=dv.getInt32(18,true), h=dv.getInt32(22,true), bpp=dv.getUint16(28,true);
+  if(bpp!==24) throw new Error('expected 24bpp BMP, got '+bpp);
+  const bottomUp=h>0, H=Math.abs(h), stride=((w*3+3)&~3), px=new Uint8Array(bmp);
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=H;
+  const ctx=cv.getContext('2d'), img=ctx.createImageData(w,H), o=img.data;
+  for(let y=0;y<H;y++){
+    const srcRow=bottomUp?(H-1-y):y, base=dataOff+srcRow*stride;
+    for(let x=0;x<w;x++){ const s=base+x*3, d=(y*w+x)*4;
+      o[d]=px[s+2]; o[d+1]=px[s+1]; o[d+2]=px[s]; o[d+3]=255; }
+  }
+  ctx.putImageData(img,0,0); return cv;
+}
+
+function draw(){
+  if(!strip) return;
+  const sy=cur*FH;
+  sctx.clearRect(0,0,FW,FH); sctx.drawImage(strip,0,sy,FW,FH,0,0,FW,FH);
+  gctx.clearRect(0,0,FW,FH); gctx.drawImage(strip,0,sy,FW,FH,0,0,FW,FH);
+  $('#scrub').value=cur; $('#scrubv').textContent=cur;
+}
+function tick(ts){
+  requestAnimationFrame(tick);
+  if(!playing||!strip) return;
+  if(ts-lastT>=1000/fps){ lastT=ts; cur=(cur+1)%N; draw(); }
+}
+
+function useStrip(canvas,frameCount,name){
+  strip=canvas; N=frameCount; FH=canvas.height/frameCount; FW=canvas.width;
+  sc.width=gl.width=FW; sc.height=gl.height=FH;
+  sctx.imageSmoothingEnabled=gctx.imageSmoothingEnabled=false;
+  cur=0; $('#scrub').max=N-1;
+  $('#meta').textContent=`${name} — ${FW}×${canvas.height} · ${N} frames of ${FW}×${FH}`;
+  draw();
+}
+
+async function loadBuf(buf,name){
+  try{
+    const {frameCount,canvas}=await decodeLKD(buf);
+    loaded[name]={canvas,frameCount};
+    return true;
+  }catch(e){
+    $('#meta').textContent='⚠ '+name+': '+e.message+
+      (typeof DecompressionStream==='undefined'?' (browser lacks DecompressionStream — use Chrome/Firefox)':'');
+    return false;
+  }
+}
+const loadFile=f=>f.arrayBuffer().then(async b=>{
+  if(await loadBuf(b,f.name)){ renderChips(f.name); const L=loaded[f.name]; useStrip(L.canvas,L.frameCount,f.name); }
+});
+
+function renderChips(active){
+  const box=$('#files'); box.innerHTML='';
+  Object.keys(loaded).forEach(name=>{
+    const c=document.createElement('span');
+    c.className='chip'+(name===active?' active':''); c.textContent=name;
+    c.onclick=()=>{ const L=loaded[name]; useStrip(L.canvas,L.frameCount,name); renderChips(name); };
+    box.appendChild(c);
+  });
+}
+
+$('#play').onclick=e=>{ playing=!playing; e.target.textContent=playing?'⏸ Pause':'▶ Play'; };
+$('#fps').oninput=e=>{ fps=+e.target.value; $('#fpsv').textContent=fps+'fps'; };
+$('#fx').onchange=e=>oel.classList.toggle('fx',e.target.checked);
+$('#scrub').oninput=e=>{ cur=+e.target.value; playing=false; $('#play').textContent='▶ Play'; draw(); };
+
+const drop=$('#drop'), fileInput=$('#file');
+drop.onclick=()=>fileInput.click();
+fileInput.onchange=e=>[...e.target.files].forEach(loadFile);
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>[...e.dataTransfer.files].forEach(loadFile));
+
+requestAnimationFrame(tick);
+
+// preload all built-in clips from clips/, then show the first one
+(async () => {
+  $('#meta').textContent = 'loading built-in animations…';
+  for (const name of BUILTIN_CLIPS) {
+    try {
+      const buf = await fetch(`clips/${name}`).then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.arrayBuffer();
+      });
+      await loadBuf(buf, name);
+    } catch (e) {
+      console.error('failed to preload', name, e);
+    }
+  }
+  const first = BUILTIN_CLIPS.find(n => loaded[n]);
+  if (first) { useStrip(loaded[first].canvas, loaded[first].frameCount, first); renderChips(first); }
+  else { $('#meta').textContent = '⚠ no built-in clips could be loaded'; }
+})();
+</script>
+</body>
+</html>

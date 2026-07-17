@@ -1,0 +1,32 @@
+name: Release
+
+# Deliberately NOT path-filtered: a version tag is an intentional release
+# cut, and gating it by paths could silently no-op a release if the tagged
+# commit didn't happen to touch app/packaging files.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install packaging tools
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev
+
+      - name: Build .deb
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ./packaging/build-deb.sh "$VERSION"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packaging/dist/*.deb
+          generate_release_notes: true

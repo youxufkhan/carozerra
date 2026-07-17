@@ -1,0 +1,36 @@
+name: Build .deb (check)
+
+# Validates the .deb still builds whenever app/packaging files change on
+# main. Does NOT create a release — that's tag-triggered, see release.yml.
+on:
+  push:
+    branches: [main]
+    paths:
+      - carozerra.py
+      - decode.py
+      - assets/**
+      - packaging/**
+      - .github/workflows/packaging-check.yml
+  workflow_dispatch:
+
+jobs:
+  build-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install packaging tools
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev
+
+      - name: Build .deb
+        run: ./packaging/build-deb.sh 0.0.0-ci
+
+      - name: Inspect package
+        run: |
+          dpkg -I packaging/dist/*.deb
+          dpkg -c packaging/dist/*.deb
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: carozerra-deb-ci
+          path: packaging/dist/*.deb
