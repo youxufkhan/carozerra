@@ -5,6 +5,7 @@
 <p align="center">
   <a href="https://github.com/youxufkhan/carozerra/releases/latest"><img src="https://img.shields.io/github/v/release/youxufkhan/carozerra?label=release&color=12e0ff" alt="Latest release"></a>
   <a href="https://youxufkhan.github.io/carozerra/"><img src="https://img.shields.io/badge/demo-live-12e0ff" alt="Live demo"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/github/license/youxufkhan/carozerra?color=12e0ff" alt="License"></a>
 </p>
 
 <p align="center">
@@ -134,6 +135,14 @@ automatically. To build locally without releasing:
 packaging/build-deb.sh 1.1.0
 # -> packaging/dist/carozerra_1.1.0_all.deb
 ```
+
+## License
+
+[MIT](./LICENSE) — covers the code (`decode.py`, `carozerra.py`, `web/`,
+`packaging/`, `.github/`). The Pioneer product photography under
+`assets/pioneer.png` and `reference/` is not original work of this project
+and isn't covered by the license — it's included for reverse-engineering
+documentation and UI purposes only.
 
 <details>
 <summary>Repo layout</summary>
