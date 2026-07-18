@@ -9,6 +9,10 @@
 </p>
 
 <p align="center">
+  <a href="./CHANGELOG.md">Changelog</a> •
+  <a href="./ROADMAP.md">Roadmap</a>
+</p>
+<p align="center">
   <a href="https://youxufkhan.github.io/carozerra/">
     <img src="./assets/readme/proof-web.png" width="100%" alt="The live web player: a Pioneer DEH-P7600MP faceplate with a decoded .lkd animation glowing cyan on its OEL screen">
   </a>
