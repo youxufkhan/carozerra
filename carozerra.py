@@ -28,23 +28,30 @@ from PyQt6.QtWidgets import QApplication, QWidget
 from decode import decode_lkd
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_W, BASE_H = 1600, 893                      # pioneer.png native size
+# pioneer.png is 1600x893 but the visible faceplate (non-transparent bbox, via
+# PIL Image.open("assets/pioneer.png").getbbox() -> (22, 204, 1581, 707) as
+# (left, top, right, bottom)) is only 1559x503 -> crop to that so the floating
+# window isn't padded with dead transparent space.
+FACE_BBOX = (22, 204, 1559, 503)                # (left, top, w, h) for QPixmap.copy()
+BASE_W, BASE_H = FACE_BBOX[2], FACE_BBOX[3]      # cropped faceplate size (was 1600, 893)
 
 # clips in nav order; presets 1-6 map to the first six
 CLIPS = ["movie1.lkd", "movie2.lkd", "movie3.lkd", "movie6.lkd",
          "movie7.lkd", "movie8_f.lkd", "movie9_f.lkd", "movie10_f.lkd"]
 
-# geometry as fractions of the faceplate (so it scales with the window)
+# geometry as fractions of the faceplate (so it scales with the window) —
+# recomputed for the cropped FACE_BBOX (was fractions of the full 1600x893 image)
 G = {
-    "screen": (0.233, 0.404, 0.449, 0.181),      # left, top, w, h
-    "lknob":  (0.1531, 0.5095),                   # center x,y
-    "lknob_disc": 0.0463, "lknob_hit": 0.0613,    # radii (of width)
-    "rknob":  (0.8656, 0.5151), "rknob_hit": 0.0640,
-    "presets_y": 0.683,
-    "presets_x": [0.325, 0.394, 0.4625, 0.531, 0.600, 0.670],
-    "preset_hw": 0.033, "preset_hh": 0.030,       # half-width/height of hitbox
-    "func": (0.747, 0.571), "func_hw": 0.030, "func_hh": 0.028,
-    "esc":  (0.9375, 0.386), "esc_hw": 0.038, "esc_hh": 0.038,
+    "screen": (0.2250, 0.3117, 0.4608, 0.3213),  # left, top, w, h
+    "lknob":  (0.1430, 0.4990),                   # center x,y
+    "lknob_disc_x": 0.0475, "lknob_disc_y": 0.0822,  # knob art crop radii (x/y independent — see _build_knob)
+    "lknob_hit": 0.0629,                          # hit-test radius (of width)
+    "rknob":  (0.8743, 0.5089), "rknob_hit": 0.0657,
+    "presets_y": 0.8070,
+    "presets_x": [0.3194, 0.3903, 0.4606, 0.5309, 0.6017, 0.6735],
+    "preset_hw": 0.0339, "preset_hh": 0.0533,     # half-width/height of hitbox
+    "func": (0.7525, 0.6082), "func_hw": 0.0308, "func_hh": 0.0497,
+    "esc":  (0.9480, 0.2797), "esc_hw": 0.0390, "esc_hh": 0.0675,
 }
 
 FPS_MIN, FPS_MAX = 4, 30
@@ -99,6 +106,7 @@ class Stereo(QWidget):
         self.setMouseTracking(True)
 
         self.face = QPixmap(os.path.join(APP_DIR, "assets", "pioneer.png"))
+        self.face = self.face.copy(*FACE_BBOX)   # crop dead transparent margin; source file untouched
         self.clips = [[pil_to_qimage(f) for f in decode_lkd(
             os.path.join(APP_DIR, "assets", "clips", name))[0]] for name in CLIPS]
         self._build_knob()
@@ -117,9 +125,9 @@ class Stereo(QWidget):
     # --- assets -------------------------------------------------------------
     def _build_knob(self):
         cx, cy = G["lknob"]
-        r = G["lknob_disc"]
-        px = self.face.copy(int((cx - r) * BASE_W), int((G["lknob"][1] - r) * BASE_H),
-                            int(2 * r * BASE_W), int(2 * r * BASE_H))
+        rx, ry = G["lknob_disc_x"], G["lknob_disc_y"]
+        px = self.face.copy(int((cx - rx) * BASE_W), int((cy - ry) * BASE_H),
+                            int(2 * rx * BASE_W), int(2 * ry * BASE_H))
         masked = QPixmap(px.size()); masked.fill(Qt.GlobalColor.transparent)
         p = QPainter(masked)
         path = QPainterPath(); path.addEllipse(0, 0, px.width(), px.height())
@@ -180,7 +188,7 @@ class Stereo(QWidget):
     def _draw_knob(self, p, fr):
         cx = fr.x() + G["lknob"][0] * fr.width()
         cy = fr.y() + G["lknob"][1] * fr.height()
-        R = G["lknob_disc"] * fr.width()
+        R = G["lknob_disc_x"] * fr.width()
         ang = -140 + (self.vol / 100.0) * 280
         p.save(); p.translate(cx, cy); p.rotate(ang)
         p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
