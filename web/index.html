@@ -18,7 +18,7 @@
   .stage .face{ width:100%; display:block; border-radius:6px; }
   .oel{ position:absolute; left:23.3%; top:40.4%; width:44.9%; height:18.1%;
     overflow:hidden; background:#000; }
-  .oel canvas{ position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated; }
+  .oel canvas{ position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated; object-fit:contain; }
   .oel #glow{ opacity:0; filter:blur(3px) brightness(1.7) saturate(1.15); mix-blend-mode:screen; transition:opacity .2s; }
   .oel .scan{ position:absolute; inset:0; pointer-events:none; opacity:0;
     background:repeating-linear-gradient(#0000 0 1.5px,#0007 1.5px 3px); transition:opacity .2s; }
@@ -36,12 +36,21 @@
   label{ display:flex; gap:6px; align-items:center; color:#9aa7b3; }
   input[type=range]{ accent-color:var(--oel); }
   .meta{ color:#5f6c78; font-size:12px; min-height:16px; }
-  .files{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:1120px; }
-  .chip{ background:#141a21; border:1px solid #263039; border-radius:20px; padding:4px 12px;
-    font-size:12px; cursor:pointer; color:#9aa7b3; }
-  .chip.active{ border-color:var(--oel); color:var(--oel); }
+  .files{ display:flex; flex-direction:column; align-items:center; gap:10px; width:min(1120px,97vw); }
+  .chip-section{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .chip-label{ font-size:11px; color:#5f6c78; text-transform:uppercase; letter-spacing:.5px; }
+  .chip-row{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  .chip{ width:124px; display:flex; flex-direction:column; gap:4px; cursor:pointer; }
+  .chip .thumb{ width:124px; height:34px; display:block; background:#000; border-radius:4px;
+    border:1px solid #263039; object-fit:contain; image-rendering:pixelated; transition:border-color .15s, box-shadow .15s; }
+  .chip .cap{ font-size:10px; color:#6b7987; text-align:center;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .chip:hover .thumb{ border-color:#3d5766; }
+  .chip:hover .cap{ color:#9aa7b3; }
+  .chip.active .thumb{ border-color:var(--oel); box-shadow:0 0 8px #12e0ff55; }
+  .chip.active .cap{ color:var(--oel); }
   .drop{ width:min(1120px,97vw); height:74px; border:2px dashed #33404c; border-radius:12px;
-    display:flex; align-items:center; justify-content:center; color:#6b7987; cursor:pointer; transition:.15s; }
+    display:flex; gap:5px; align-items:center; justify-content:center; color:#6b7987; cursor:pointer; transition:.15s; }
   .drop.over{ border-color:var(--oel); color:var(--oel); background:#12e0ff10; }
   .foot{ display:flex; align-items:center; gap:10px; color:#5f6c78; font-size:12px; margin-top:4px; }
   .foot a{ display:inline-flex; align-items:center; gap:6px; color:#9aa7b3; text-decoration:none; }
@@ -78,6 +87,11 @@
     <label><input type="checkbox" id="fx" checked> Retro glow</label>
     <label>Frame <input type="range" id="scrub" min="0" max="59" value="0" style="width:160px"><span id="scrubv">0</span></label>
   </div>
+  <div class="controls" id="export">
+    <button id="expGif">⬇ GIF</button>
+    <button id="expWebm">⬇ WebM</button>
+    <span class="meta" id="expStatus"></span>
+  </div>
   <div class="meta" id="meta">loading…</div>
   <div class="files" id="files"></div>
 
@@ -94,19 +108,57 @@
     <span>developed by <a href="https://github.com/youxufkhan" target="_blank" rel="noopener">youxufkhan</a></span>
   </footer>
 
-<script>
-// preloaded from clips/ — same 8 animations shipped with the desktop app
-const BUILTIN_CLIPS = [
-  "movie1.lkd", "movie2.lkd", "movie3.lkd", "movie6.lkd",
-  "movie7.lkd", "movie8_f.lkd", "movie9_f.lkd", "movie10_f.lkd",
-];
+<script type="module">
+import { GIFEncoder, quantize, applyPalette } from './gifenc.esm.js';
+
+// preloaded from clips/ — categorized so the chip list stays browsable at 83 clips.
+// "movie1-10"/"6-10" etc. are the original 8 shipped with the desktop app; everything
+// else (alt_*, still_*, meter_*, color_*) came from community-contributed found_discs/.
+const BUILTIN_CLIPS = {
+  'Movies': [
+    "movie1.lkd", "movie2.lkd", "movie3.lkd", "movie4.lkd", "movie5.lkd",
+    "movie6.lkd", "movie7.lkd", "movie8_f.lkd", "movie9_f.lkd", "movie10_f.lkd",
+    "alt_airship.lkd", "alt_diverdolphins.lkd", "alt_dragonrider.lkd",
+    "alt_metropolis.lkd", "alt_waterboard.lkd", "alt_wildlife.lkd", "alt_wrc.lkd",
+  ],
+  'Backgrounds': [
+    "alt_bgv1.lkd", "alt_bgv2.lkd", "alt_bgv3.lkd", "alt_bgv4.lkd",
+  ],
+  'Stills': [
+    "still_bgp01.lkd", "still_bgp02.lkd", "still_bgp03.lkd", "still_bgp04.lkd",
+    "still_bgp05.lkd", "still_bgp06.lkd", "still_bgp07.lkd", "still_bgp08.lkd", "still_bgp09.lkd",
+    "still_bgp_f_10.lkd", "still_bgp_f_11.lkd", "still_bgp_f_12.lkd", "still_bgp_f_13.lkd",
+    "still_bgp_f_14.lkd", "still_bgp_f_15.lkd", "still_bgp_f_16.lkd", "still_bgp_f_17.lkd", "still_bgp_f_18.lkd",
+    "alt_still_bgp_e1.lkd", "alt_still_bgp_e2.lkd", "alt_still_bgp_e3.lkd", "alt_still_bgp_e4.lkd", "alt_still_bgp_e5.lkd",
+  ],
+  'Level Meters': [
+    "meter_level01.lkd", "meter_level02.lkd", "meter_level03.lkd", "meter_level04.lkd", "meter_level05.lkd",
+    "meter_level06_f.lkd", "meter_level07_f.lkd",
+    "alt_meter_li01.lkd", "alt_meter_li02.lkd", "alt_meter_li03.lkd", "alt_meter_li04.lkd",
+    "alt_meter_li05.lkd", "alt_meter_li06.lkd", "alt_meter_li07.lkd", "alt_meter_li08.lkd",
+  ],
+  'Color': [
+    "color_01_nightcruising.lkd", "color_02_greatbarrierreef.lkd", "color_03_redplanet.lkd",
+    "color_04_island.lkd", "color_05_firedragon.lkd", "color_06_racingcart.lkd", "color_07_motogp.lkd",
+    "color_still_bgp01.lkd", "color_still_bgp02.lkd", "color_still_bgp03.lkd", "color_still_bgp04.lkd",
+    "color_still_bgp05.lkd", "color_still_bgp06.lkd", "color_still_bgp07.lkd", "color_still_bgp08.lkd",
+    "color_still_bgp09.lkd", "color_still_bgp10.lkd",
+    "color_bgv01.lkd", "color_bgv02.lkd", "color_bgv03.lkd", "color_bgv04.lkd", "color_bgv05.lkd",
+    "color_bgv06.lkd", "color_bgv07.lkd",
+  ],
+};
+const ALL_CLIPS = Object.values(BUILTIN_CLIPS).flat();
+function categoryOf(name){
+  for (const [cat, names] of Object.entries(BUILTIN_CLIPS)) if (names.includes(name)) return cat;
+  return 'Custom';
+}
 
 const $=s=>document.querySelector(s);
 const oel=$('#oel'), sc=$('#screen'), gl=$('#glow');
 const sctx=sc.getContext('2d'), gctx=gl.getContext('2d');
 sctx.imageSmoothingEnabled=false; gctx.imageSmoothingEnabled=false;
 
-let strip=null, FW=256, FH=64, N=60, cur=0, playing=true, fps=16, lastT=0;
+let strip=null, FW=256, FH=64, N=60, cur=0, playing=true, fps=16, lastT=0, currentName=null;
 const loaded={};
 
 function u32(dv,o){ return dv.getUint32(o,true); }
@@ -153,7 +205,7 @@ function tick(ts){
 }
 
 function useStrip(canvas,frameCount,name){
-  strip=canvas; N=frameCount; FH=canvas.height/frameCount; FW=canvas.width;
+  strip=canvas; N=frameCount; FH=canvas.height/frameCount; FW=canvas.width; currentName=name;
   sc.width=gl.width=FW; sc.height=gl.height=FH;
   sctx.imageSmoothingEnabled=gctx.imageSmoothingEnabled=false;
   cur=0; $('#scrub').max=N-1;
@@ -164,7 +216,7 @@ function useStrip(canvas,frameCount,name){
 async function loadBuf(buf,name){
   try{
     const {frameCount,canvas}=await decodeLKD(buf);
-    loaded[name]={canvas,frameCount};
+    loaded[name]={canvas,frameCount,category:categoryOf(name)};
     return true;
   }catch(e){
     $('#meta').textContent='⚠ '+name+': '+e.message+
@@ -176,15 +228,201 @@ const loadFile=f=>f.arrayBuffer().then(async b=>{
   if(await loadBuf(b,f.name)){ renderChips(f.name); const L=loaded[f.name]; useStrip(L.canvas,L.frameCount,f.name); }
 });
 
+// drop the category prefix (the section heading already says it) and .lkd, so
+// "color_01_nightcruising.lkd" captions as "01 nightcruising" — full name stays in the tooltip
+const prettyName=name=>name.replace(/\.lkd$/i,'').replace(/^(alt|still|meter|color)_/,'').replace(/_/g,' ');
+
+const chipEls={};
+function setActiveChip(active){
+  for(const [n,el] of Object.entries(chipEls)) el.classList.toggle('active',n===active);
+}
+
+function makeChip(name){
+  const L=loaded[name], fh=L.canvas.height/L.frameCount;
+  const el=document.createElement('div');
+  el.className='chip'; el.title=`${name} — ${L.canvas.width}×${fh} · ${L.frameCount} frames`;
+
+  const cv=document.createElement('canvas');
+  cv.className='thumb'; cv.width=L.canvas.width; cv.height=fh;
+  const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+  const drawThumb=f=>{ ctx.clearRect(0,0,cv.width,fh); ctx.drawImage(L.canvas,0,f*fh,cv.width,fh,0,0,cv.width,fh); };
+  // poster = middle frame; several clips fade in from an all-black frame 0
+  const poster=Math.floor(L.frameCount/2);
+  drawThumb(poster);
+
+  const cap=document.createElement('div'); cap.className='cap'; cap.textContent=prettyName(name);
+  el.append(cv,cap);
+  el.onclick=()=>{ useStrip(L.canvas,L.frameCount,name); setActiveChip(name); };
+
+  // hover: preview the animation in place (stills have nothing to animate)
+  let raf=null;
+  el.onmouseenter=()=>{
+    if(L.frameCount<2) return;
+    let f=0,last=0;
+    const step=ts=>{
+      if(ts-last>=1000/12){ last=ts; f=(f+1)%L.frameCount; drawThumb(f); }
+      raf=requestAnimationFrame(step);
+    };
+    raf=requestAnimationFrame(step);
+  };
+  el.onmouseleave=()=>{ if(raf){ cancelAnimationFrame(raf); raf=null; } drawThumb(poster); };
+
+  return el;
+}
+
 function renderChips(active){
   const box=$('#files'); box.innerHTML='';
-  Object.keys(loaded).forEach(name=>{
-    const c=document.createElement('span');
-    c.className='chip'+(name===active?' active':''); c.textContent=name;
-    c.onclick=()=>{ const L=loaded[name]; useStrip(L.canvas,L.frameCount,name); renderChips(name); };
-    box.appendChild(c);
-  });
+  for(const k of Object.keys(chipEls)) delete chipEls[k];
+  const order=[...Object.keys(BUILTIN_CLIPS),'Custom'];
+  for(const cat of order){
+    const names=Object.keys(loaded).filter(n=>loaded[n].category===cat);
+    if(!names.length) continue;
+    const section=document.createElement('div'); section.className='chip-section';
+    const label=document.createElement('div'); label.className='chip-label'; label.textContent=cat;
+    const row=document.createElement('div'); row.className='chip-row';
+    names.forEach(name=>{ const el=makeChip(name); chipEls[name]=el; row.appendChild(el); });
+    section.appendChild(label); section.appendChild(row); box.appendChild(section);
+  }
+  setActiveChip(active);
 }
+
+// ---- export: GIF (baked glow) + WebM recording, sharing one glow-baking routine ----
+const EXPORT_SCALE=4;   // matches decode.py's default --scale 4
+let upCv, blurCv;
+function ensureScratch(w,h){
+  if(!upCv){ upCv=document.createElement('canvas'); blurCv=document.createElement('canvas'); }
+  if(upCv.width!==w||upCv.height!==h){ upCv.width=blurCv.width=w; upCv.height=blurCv.height=h; }
+}
+// port of decode.py's apply_glow(): nearest-neighbor upscale, then (if glowOn) a
+// blurred+brightened copy screen-blended over it, plus per-row scanline darkening.
+function bakeFrame(outCtx,frameIdx,glowOn,scale=EXPORT_SCALE){
+  const outW=FW*scale, outH=FH*scale;
+  ensureScratch(outW,outH);
+  const upCtx=upCv.getContext('2d');
+  upCtx.imageSmoothingEnabled=false;
+  upCtx.clearRect(0,0,outW,outH);
+  upCtx.drawImage(strip,0,frameIdx*FH,FW,FH,0,0,outW,outH);
+
+  outCtx.clearRect(0,0,outW,outH);
+  if(!glowOn){ outCtx.drawImage(upCv,0,0); return; }
+
+  const blurCtx=blurCv.getContext('2d');
+  const radius=Math.max(1.5,scale*0.9);
+  blurCtx.clearRect(0,0,outW,outH);
+  blurCtx.filter=`blur(${radius}px) brightness(135%)`;
+  blurCtx.drawImage(upCv,0,0);
+  blurCtx.filter='none';
+
+  outCtx.globalCompositeOperation='source-over'; outCtx.drawImage(upCv,0,0);
+  outCtx.globalCompositeOperation='screen';      outCtx.drawImage(blurCv,0,0);
+  outCtx.globalCompositeOperation='source-over';
+
+  if(scale>=2){
+    outCtx.fillStyle='rgba(0,0,0,0.45)';   // alpha-composited black@0.45 == src*0.55, matches decode.py's scanline darken
+    for(let y=0;y<outH;y+=scale) outCtx.fillRect(0,y,outW,1);
+  }
+}
+
+function downloadBlob(blob,filename){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function setExportBusy(busy){
+  $('#expGif').disabled=busy; $('#expWebm').disabled=busy;
+  $('#play').disabled=busy; $('#scrub').disabled=busy;
+  $('#files').style.pointerEvents=busy?'none':''; $('#files').style.opacity=busy?'.5':'';
+  $('#drop').style.pointerEvents=busy?'none':'';
+}
+
+async function exportGif(){
+  if(!strip) return;
+  setExportBusy(true);
+  try{
+    const glowOn=$('#fx').checked, stem=(currentName||'clip').replace(/\.lkd$/i,'');
+    const scale=EXPORT_SCALE, outW=FW*scale, outH=FH*scale, delay=Math.round(1000/fps);
+    const bakeCv=document.createElement('canvas'); bakeCv.width=outW; bakeCv.height=outH;
+    const bakeCtx=bakeCv.getContext('2d');
+
+    const frames=[];
+    for(let i=0;i<N;i++){
+      bakeFrame(bakeCtx,i,glowOn,scale);
+      frames.push(bakeCtx.getImageData(0,0,outW,outH).data);
+      $('#expStatus').textContent=`encoding… ${i+1}/${N}`;
+      await new Promise(r=>requestAnimationFrame(r));
+    }
+
+    // one shared palette, sampled from every 5th frame — avoids inter-frame flicker
+    // and bounds memory (no need to concat every frame for these simple, low-color clips)
+    const sampleIdx=[]; for(let i=0;i<frames.length;i+=5) sampleIdx.push(i);
+    const sampleBuf=new Uint8Array(sampleIdx.length*outW*outH*4);
+    let off=0; for(const i of sampleIdx){ sampleBuf.set(frames[i],off); off+=frames[i].length; }
+    const palette=quantize(sampleBuf,256);
+
+    const gif=GIFEncoder();
+    for(let i=0;i<frames.length;i++){
+      const index=applyPalette(frames[i],palette);
+      gif.writeFrame(index,outW,outH,{palette,delay,repeat:0});
+      $('#expStatus').textContent=`writing… ${i+1}/${N}`;
+    }
+    gif.finish();
+    downloadBlob(new Blob([gif.bytes()],{type:'image/gif'}), `${stem}_${glowOn?'glow':'clean'}.gif`);
+    $('#expStatus').textContent='';
+  }finally{ setExportBusy(false); }
+}
+
+function pickWebmMime(){
+  if(!window.MediaRecorder) return null;
+  return ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(m=>MediaRecorder.isTypeSupported(m));
+}
+
+async function exportWebm(){
+  if(!strip) return;
+  const mime=pickWebmMime();
+  if(!mime){ $('#expStatus').textContent='⚠ WebM recording not supported in this browser'; return; }
+
+  setExportBusy(true);
+  const wasPlaying=playing; playing=false;
+  try{
+    const glowOn=$('#fx').checked, stem=(currentName||'clip').replace(/\.lkd$/i,'');
+    const scale=EXPORT_SCALE, outW=FW*scale, outH=FH*scale;
+    const recCv=document.createElement('canvas'); recCv.width=outW; recCv.height=outH;
+    const recCtx=recCv.getContext('2d');
+    bakeFrame(recCtx,0,glowOn,scale);
+
+    const stream=recCv.captureStream(fps);
+    const chunks=[];
+    const rec=new MediaRecorder(stream,{mimeType:mime});
+    rec.ondataavailable=e=>{ if(e.data.size) chunks.push(e.data); };
+    const stopped=new Promise(resolve=>{ rec.onstop=resolve; });
+
+    rec.start();
+    const tickMs=1000/fps;
+    await new Promise(resolve=>{
+      let recCur=0;
+      const step=()=>{
+        recCur++;
+        $('#expStatus').textContent=`recording… ${(recCur/fps).toFixed(1)}s`;
+        if(recCur>=N){ setTimeout(()=>{ rec.stop(); resolve(); },tickMs); return; }  // one extra tick so captureStream's sampler catches the last frame
+        bakeFrame(recCtx,recCur,glowOn,scale);
+        setTimeout(step,tickMs);
+      };
+      setTimeout(step,tickMs);
+    });
+    await stopped;
+
+    downloadBlob(new Blob(chunks,{type:'video/webm'}), `${stem}_${glowOn?'glow':'clean'}.webm`);
+    $('#expStatus').textContent='';
+  }finally{ playing=wasPlaying; setExportBusy(false); }
+}
+
+if(!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream){
+  $('#expWebm').disabled=true; $('#expWebm').title='not supported in this browser';
+}
+$('#expGif').onclick=()=>exportGif().catch(e=>{ console.error(e); $('#expStatus').textContent='⚠ export failed: '+e.message; setExportBusy(false); });
+$('#expWebm').onclick=()=>exportWebm().catch(e=>{ console.error(e); $('#expStatus').textContent='⚠ export failed: '+e.message; setExportBusy(false); });
 
 $('#play').onclick=e=>{ playing=!playing; e.target.textContent=playing?'⏸ Pause':'▶ Play'; };
 $('#fps').oninput=e=>{ fps=+e.target.value; $('#fpsv').textContent=fps+'fps'; };
@@ -203,7 +441,7 @@ requestAnimationFrame(tick);
 // preload all built-in clips from clips/, then show the first one
 (async () => {
   $('#meta').textContent = 'loading built-in animations…';
-  for (const name of BUILTIN_CLIPS) {
+  for (const name of ALL_CLIPS) {
     try {
       const buf = await fetch(`clips/${name}`).then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -214,7 +452,7 @@ requestAnimationFrame(tick);
       console.error('failed to preload', name, e);
     }
   }
-  const first = BUILTIN_CLIPS.find(n => loaded[n]);
+  const first = ALL_CLIPS.find(n => loaded[n]);
   if (first) { useStrip(loaded[first].canvas, loaded[first].frameCount, first); renderChips(first); }
   else { $('#meta').textContent = '⚠ no built-in clips could be loaded'; }
 })();
