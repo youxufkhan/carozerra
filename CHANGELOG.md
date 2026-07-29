@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Desktop app: window now crops tightly to the faceplate's visible bounds instead of including the surrounding transparent margin, for a cleaner floating widget.
+- Web player: clips are now fetched as their thumbnails scroll into view rather than all at once on page load — first load drops from ~12.8 MB across 89 requests to ~2.7 MB, and the gallery is interactive immediately.
+- Packaging: the `.deb` now ships only the clips the desktop app actually opens instead of the whole `assets/` tree, taking it from 14.4 MB back to 2.7 MB. The list is read out of `carozerra.py` at build time so it can't drift.
 - Desktop app: `Esc` now closes the control map when it's open instead of quitting — an extra keypress if you did mean to quit, versus losing the app if you didn't.
 
 ## [1.1.0] - Initial Public Release

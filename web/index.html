@@ -51,6 +51,8 @@
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .chip:hover .thumb{ border-color:#3d5766; }
   .chip:hover .cap{ color:#9aa7b3; }
+  .chip.pending .thumb{ background:#0b0f14; border-style:dashed; }
+  .chip.failed .thumb{ border-color:#5a2b2b; background:#140b0b; }
   .chip.active .thumb{ border-color:var(--oel); box-shadow:0 0 8px #12e0ff55; }
   .chip.active .cap{ color:var(--oel); }
   .drop{ width:min(1120px,97vw); height:74px; border:2px dashed #33404c; border-radius:12px;
@@ -273,6 +275,36 @@ const loadFile=f=>f.arrayBuffer().then(async b=>{
   if(await loadBuf(b,f.name)){ renderChips(f.name); const L=loaded[f.name]; useStrip(L.canvas,L.frameCount,f.name); }
 });
 
+// Clips are fetched on demand, not all at once: the full set is ~12MB across 83
+// files, which is a long blank wait on anything slower than localhost. Tiles and
+// captions render immediately; each clip is fetched when its tile nears the
+// viewport (or when it's selected), and cached from then on.
+const pending={};
+function ensureLoaded(name){
+  if(loaded[name]) return Promise.resolve(loaded[name]);
+  if(!pending[name]){
+    pending[name]=fetch(`clips/${name}`)
+      .then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
+      .then(decodeLKD)
+      .then(({frameCount,canvas})=>(loaded[name]={canvas,frameCount,category:categoryOf(name)}))
+      .catch(err=>{ delete pending[name]; throw err; });   // drop it so a later attempt can retry
+  }
+  return pending[name];
+}
+
+let selectSeq=0;
+async function selectClip(name){
+  const seq=++selectSeq;
+  setActiveChip(name);          // synchronous: arrow-key nav derives the next index from .active
+  try{
+    const L=await ensureLoaded(name);
+    if(seq!==selectSeq) return; // a later selection won the race while this was fetching
+    useStrip(L.canvas,L.frameCount,name);
+  }catch(err){
+    if(seq===selectSeq) $('#meta').textContent='⚠ '+name+': '+err.message;
+  }
+}
+
 // drop the category prefix (the section heading already says it) and .lkd, so
 // "color_01_nightcruising.lkd" captions as "01 nightcruising" — full name stays in the tooltip
 const prettyName=name=>name.replace(/\.lkd$/i,'').replace(/^(alt|still|meter|color)_/,'').replace(/_/g,' ');
@@ -282,50 +314,73 @@ function setActiveChip(active){
   for(const [n,el] of Object.entries(chipEls)) el.classList.toggle('active',n===active);
 }
 
+// The tile exists before its clip does — caption and click target are available
+// straight away, and hydrateChip() fills in the artwork once the data arrives.
 function makeChip(name){
-  const L=loaded[name], fh=L.canvas.height/L.frameCount;
   const el=document.createElement('div');
-  el.className='chip'; el.title=`${name} — ${L.canvas.width}×${fh} · ${L.frameCount} frames`;
-
+  el.className='chip pending'; el.dataset.name=name; el.title=name;
   const cv=document.createElement('canvas');
-  cv.className='thumb'; cv.width=L.canvas.width; cv.height=fh;
-  const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
-  const drawThumb=f=>{ ctx.clearRect(0,0,cv.width,fh); ctx.drawImage(L.canvas,0,f*fh,cv.width,fh,0,0,cv.width,fh); };
-  // poster = middle frame; several clips fade in from an all-black frame 0
-  const poster=Math.floor(L.frameCount/2);
-  drawThumb(poster);
-
+  cv.className='thumb'; cv.width=124; cv.height=34;      // placeholder box, replaced at hydration
   const cap=document.createElement('div'); cap.className='cap'; cap.textContent=prettyName(name);
   el.append(cv,cap);
-  el.onclick=()=>{ useStrip(L.canvas,L.frameCount,name); setActiveChip(name); };
-
-  // hover: preview the animation in place (stills have nothing to animate)
-  let raf=null;
-  el.onmouseenter=()=>{
-    if(L.frameCount<2) return;
-    let f=0,last=0;
-    const step=ts=>{
-      if(ts-last>=1000/12){ last=ts; f=(f+1)%L.frameCount; drawThumb(f); }
-      raf=requestAnimationFrame(step);
-    };
-    raf=requestAnimationFrame(step);
-  };
-  el.onmouseleave=()=>{ if(raf){ cancelAnimationFrame(raf); raf=null; } drawThumb(poster); };
-
+  el.onclick=()=>selectClip(name);
   return el;
 }
 
+function hydrateChip(el){
+  const name=el.dataset.name;
+  ensureLoaded(name).then(L=>{
+    const fh=L.canvas.height/L.frameCount;
+    el.classList.remove('pending');
+    el.title=`${name} — ${L.canvas.width}×${fh} · ${L.frameCount} frames`;
+    const cv=el.querySelector('canvas.thumb');
+    cv.width=L.canvas.width; cv.height=fh;
+    const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+    const drawThumb=f=>{ ctx.clearRect(0,0,cv.width,fh); ctx.drawImage(L.canvas,0,f*fh,cv.width,fh,0,0,cv.width,fh); };
+    // poster = middle frame; several clips fade in from an all-black frame 0
+    const poster=Math.floor(L.frameCount/2);
+    drawThumb(poster);
+
+    // hover: preview the animation in place (stills have nothing to animate)
+    let raf=null;
+    el.onmouseenter=()=>{
+      if(L.frameCount<2) return;
+      let f=0,last=0;
+      const step=ts=>{
+        if(ts-last>=1000/12){ last=ts; f=(f+1)%L.frameCount; drawThumb(f); }
+        raf=requestAnimationFrame(step);
+      };
+      raf=requestAnimationFrame(step);
+    };
+    el.onmouseleave=()=>{ if(raf){ cancelAnimationFrame(raf); raf=null; } drawThumb(poster); };
+  }).catch(err=>{
+    el.classList.remove('pending'); el.classList.add('failed');
+    el.title=`${name} — ${err.message}`;
+  });
+}
+
+// Fetch strictly on visibility. A prefetch margin was measured and rejected:
+// tiles are short, so even 100px pulls in whole extra rows — on a 1280x900
+// laptop that took first load from 2.7MB to 4.1MB, and 300px to 4.4MB, for a
+// thumbnail nobody has scrolled to yet. Pop-in while scrolling is the accepted
+// cost, same bargain as native lazy images.
+const chipObserver=new IntersectionObserver((entries,obs)=>{
+  for(const e of entries) if(e.isIntersecting){ obs.unobserve(e.target); hydrateChip(e.target); }
+},{rootMargin:'0px'});
+
 function renderChips(active){
   const box=$('#files'); box.innerHTML='';
+  chipObserver.disconnect();
   for(const k of Object.keys(chipEls)) delete chipEls[k];
-  const order=[...Object.keys(BUILTIN_CLIPS),'Custom'];
-  for(const cat of order){
-    const names=Object.keys(loaded).filter(n=>loaded[n].category===cat);
+  const custom=Object.keys(loaded).filter(n=>loaded[n].category==='Custom');
+  for(const [cat,names] of [...Object.entries(BUILTIN_CLIPS),['Custom',custom]]){
     if(!names.length) continue;
     const section=document.createElement('div'); section.className='chip-section';
     const label=document.createElement('div'); label.className='chip-label'; label.textContent=cat;
     const row=document.createElement('div'); row.className='chip-row';
-    names.forEach(name=>{ const el=makeChip(name); chipEls[name]=el; row.appendChild(el); });
+    names.forEach(name=>{
+      const el=makeChip(name); chipEls[name]=el; row.appendChild(el); chipObserver.observe(el);
+    });
     section.appendChild(label); section.appendChild(row); box.appendChild(section);
   }
   setActiveChip(active);
@@ -593,24 +648,11 @@ drop.addEventListener('drop',e=>[...e.dataTransfer.files].forEach(loadFile));
 
 requestAnimationFrame(tick);
 
-// preload all built-in clips from clips/, then show the first one
-(async () => {
-  $('#meta').textContent = 'loading built-in animations…';
-  for (const name of ALL_CLIPS) {
-    try {
-      const buf = await fetch(`clips/${name}`).then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.arrayBuffer();
-      });
-      await loadBuf(buf, name);
-    } catch (e) {
-      console.error('failed to preload', name, e);
-    }
-  }
-  const first = ALL_CLIPS.find(n => loaded[n]);
-  if (first) { useStrip(loaded[first].canvas, loaded[first].frameCount, first); renderChips(first); }
-  else { $('#meta').textContent = '⚠ no built-in clips could be loaded'; }
-})();
+// paint the gallery immediately, then fetch only the first clip — the rest
+// arrive as their tiles scroll into view (see chipObserver)
+renderChips(null);
+$('#meta').textContent='loading…';
+selectClip(ALL_CLIPS[0]);
 </script>
 </body>
 </html>

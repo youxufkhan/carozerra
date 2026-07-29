@@ -19,7 +19,26 @@ mkdir -p "$BUILD/DEBIAN" \
 
 # app payload
 cp "$ROOT/carozerra.py" "$ROOT/decode.py" "$BUILD/usr/share/carozerra/"
-cp -r "$ROOT/assets" "$BUILD/usr/share/carozerra/assets"
+
+# assets/ holds 83 clips (~11M) plus the README's screenshots, but the desktop
+# app only ever opens the handful named in carozerra.py's CLIPS. Ship exactly
+# those -- read out of carozerra.py itself so this can't drift from the app.
+mkdir -p "$BUILD/usr/share/carozerra/assets/clips"
+cp "$ROOT/assets/pioneer.png" "$BUILD/usr/share/carozerra/assets/pioneer.png"
+mapfile -t CLIPS < <(python3 - "$ROOT/carozerra.py" <<'PY'
+import ast, re, sys
+src = open(sys.argv[1]).read()
+m = re.search(r'^CLIPS\s*=\s*(\[.*?\])', src, re.S | re.M)
+if not m:
+    sys.exit("build-deb.sh: could not find CLIPS in carozerra.py")
+print('\n'.join(ast.literal_eval(m.group(1))))
+PY
+)
+[ "${#CLIPS[@]}" -gt 0 ] || { echo "build-deb.sh: CLIPS came back empty" >&2; exit 1; }
+for clip in "${CLIPS[@]}"; do
+  cp "$ROOT/assets/clips/$clip" "$BUILD/usr/share/carozerra/assets/clips/$clip"
+done
+echo "packaged ${#CLIPS[@]} clip(s)"
 
 # launcher shim
 cat > "$BUILD/usr/bin/carozerra" <<'SHIM'
