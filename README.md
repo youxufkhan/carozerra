@@ -53,9 +53,12 @@ waterfalls, leaping dolphins, etc.).
 ## Web player
 
 Decodes fully client-side — `DecompressionStream` for gzip, an inline tar
-reader, a BMP parser to canvas. All 8 built-in clips are preloaded and
-selectable via chips; drag-and-drop (or click) still lets you load any other
-`.lkd` file — nothing is uploaded anywhere.
+reader, a BMP parser to canvas. 83 built-in clips (movies, backgrounds, stills,
+level meters, and a full-color set — see `assets/clips/`) are preloaded and
+picked from a categorized gallery of preview thumbnails that animate on hover;
+drag-and-drop (or click) still lets you load any other `.lkd` file — nothing is
+uploaded anywhere. GIF and WebM export (with the retro phosphor glow baked into
+the output) are available via the Export buttons.
 
 > Requires a browser with `DecompressionStream` (current Chrome/Firefox/Edge).
 
@@ -154,12 +157,13 @@ documentation and UI purposes only.
 ```
 carozerra/
 ├── web/                # GitHub Pages player — decodes .lkd fully client-side
-│   └── index.html
+│   ├── index.html
+│   └── gifenc.esm.js     # vendored GIF encoder (mattdesl/gifenc, MIT) used by GIF export
 ├── carozerra.py         # Linux desktop visualizer (PyQt6)
 ├── decode.py             # .lkd decoder — CLI + importable library
 ├── assets/
 │   ├── pioneer.png        # faceplate cutout, shared by web + desktop
-│   ├── clips/               # the 8 preloaded .lkd animations
+│   ├── clips/               # the 83 preloaded .lkd animations (movies, bgv, bgp, level meters, color)
 │   └── readme/                # this README's hero SVG + proof screenshots
 ├── reference/              # provenance only — not used by any code
 │   ├── pioneer-original.jpeg

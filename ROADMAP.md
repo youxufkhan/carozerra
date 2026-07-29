@@ -4,19 +4,19 @@ This document outlines the planned features, requested enhancements, and future 
 
 ## 🟢 High Priority / Quick Wins
 
-*   **Add MP4/GIF Export to Web Player**
-    *   *Details:* The Python CLI already supports converting animations into MP4 or GIF formats with a "retro phosphor glow" filter. This functionality will be ported to the web player so users can export directly from their browser.
-*   **Crop Desktop App**
-    *   *Details:* Refine the Linux desktop app window to strictly crop around the head unit faceplate itself for a cleaner floating widget aesthetic.
-*   **Integrate More Animations**
-    *   *Details:* Extract and add more classic `.lkd` animations, specifically targeting content from the Pioneer DEH-P7500MP demo discs.
+*   **Windows Build**
+    *   *Details:* Package and release the desktop visualizer for Windows users, allowing the floating widget to run natively on Windows desktops.
 
 ## 🟡 Medium Priority / Platform Expansion
 
-*   **Windows Build**
-    *   *Details:* Package and release the desktop visualizer for Windows users, allowing the floating widget to run natively on Windows desktops.
+*   **Multiple Head-Unit Skins**
+    *   *Details:* Support switching the faceplate/display style — e.g. a Kenwood/Alpine green-VFD skin, an amber hi-fi VFD skin, a modern-LCD skin — alongside the existing Pioneer OEL faceplate. Motivated by a similar community gallery project ([jonaudi.xyz/units](https://www.jonaudi.xyz/units/)) and by the newly-added "Color" clip category (genuinely full-color content currently shown through the cyan-OEL cosmetic overlay it wasn't designed for) — a natural first real use case for a second skin.
+*   **Keyboard Arrow-Key Gallery Navigation**
+    *   *Details:* Add ←→ (prev/next animation) and ↑↓ (prev/next unit skin, once multiple skins exist) keyboard navigation to the web player, matching the pattern used by jonaudi.xyz/units. Cheap to add once multiple skins exist.
 *   **Additional Linux Distributions**
     *   *Details:* Expand Linux packaging beyond just the current Debian (`.deb`) releases. Look into supporting Arch, RPM-based distros, or universal formats like Flatpak/AppImage.
+*   **Reverse-Engineer the `.lka` Container Format**
+    *   *Details:* Community-contributed discs also included `ent_disp.lka` and `Default_all.LKA` — neither matches the `zLKD` magic bytes our decoder expects, and their format is currently unknown. Needs its own investigation before any content inside them can be extracted.
 
 ## 🔴 Long-Term / New Ecosystems
 
