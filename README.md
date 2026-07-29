@@ -139,17 +139,26 @@ Output goes to `out/` (gitignored — fully regenerable, not shipped).
 
 ## Releasing
 
+Order matters: `pages.yml` triggers on pushes to `main`, not on tags, so the
+website must go out before (or with) the tag — otherwise a new Release ships
+alongside a site still serving the previous player.
+
 ```bash
-git tag v1.1.0
-git push --tags
+git push origin main          # triggers packaging-check.yml + pages.yml
+# wait for both green, and confirm the live site picked up the new build
+git tag v1.2.0
+git push origin v1.2.0        # triggers release.yml
 ```
+
+Use the two-step push rather than `git push --tags`: that pushes only the tag,
+leaving `main` (and the site) behind.
 
 `release.yml` builds the `.deb` and attaches it to a new GitHub Release
 automatically. To build locally without releasing:
 
 ```bash
-packaging/build-deb.sh 1.1.0
-# -> packaging/dist/carozerra_1.1.0_all.deb
+packaging/build-deb.sh 1.2.0
+# -> packaging/dist/carozerra_1.2.0_all.deb
 ```
 
 ## License

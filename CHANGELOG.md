@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-30
+
 ### Added
+- The project is now MIT-licensed: added LICENSE, plus a license badge and section in the README.
+- Web player: page-view analytics via Google Analytics (gtag.js).
+- Web player: footer with a link to the GitHub repo and author credit.
 - Created ROADMAP.md to track future features and community requests.
 - Added links to Roadmap and Changelog in the README.
 - Web player: GIF and WebM export, baking the "retro glow" phosphor look (blur + screen-blend + scanlines, ported from `decode.py`'s `apply_glow`) into the exported pixels/video.
@@ -16,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Web player: clip canvas now preserves native aspect ratio (`object-fit: contain`) instead of stretching to fill the OEL screen — needed for the new content's varied resolutions, and fixes a slight stretch present on the original 8 clips too.
 - Web player: `←`/`→` browse the gallery, wrapping at both ends and scrolling the selection into view. The Speed and Frame sliders keep their own native arrow-key behaviour when focused.
 - Web player: a Changelog link in the footer opens this file in a modal, fetched at click time so it can't drift from the repo.
+- Web player: vendored `web/gifenc.esm.js` (mattdesl/gifenc, MIT) to encode GIFs client-side without a build step.
 - Desktop app: the control map is shown on the faceplate for a few seconds at launch and reopens with `F1`, covering both the head-unit's buttons and the keyboard shortcuts.
 
 ### Changed

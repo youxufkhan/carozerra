@@ -23,5 +23,8 @@ web/CHANGELOG.md
 # not itself shipped (contains large installer binaries + redundant mirrors)
 found_discs/
 
+# local agent/tool state — never part of the project
+.claude/
+
 # OS
 .DS_Store
