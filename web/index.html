@@ -36,6 +36,10 @@
   label{ display:flex; gap:6px; align-items:center; color:#9aa7b3; }
   input[type=range]{ accent-color:var(--oel); }
   .meta{ color:#5f6c78; font-size:12px; min-height:16px; }
+  .metarow{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  .hint{ display:inline-flex; gap:5px; align-items:center; color:#5f6c78; font-size:11px; }
+  kbd{ font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--oel);
+    background:#12e0ff10; border:1px solid #2c3742; border-radius:4px; padding:1px 5px; }
   .files{ display:flex; flex-direction:column; align-items:center; gap:10px; width:min(1120px,97vw); }
   .chip-section{ display:flex; flex-direction:column; align-items:center; gap:6px; }
   .chip-label{ font-size:11px; color:#5f6c78; text-transform:uppercase; letter-spacing:.5px; }
@@ -56,6 +60,32 @@
   .foot a{ display:inline-flex; align-items:center; gap:6px; color:#9aa7b3; text-decoration:none; }
   .foot a:hover{ color:var(--oel); }
   .foot .sep{ opacity:.5; }
+  .foot .linkbtn{ background:none; border:none; padding:0; font:inherit; color:#9aa7b3; cursor:pointer; }
+  .foot .linkbtn:hover{ color:var(--oel); border:none; }
+
+  .modal{ position:fixed; inset:0; z-index:10; display:none; align-items:center; justify-content:center;
+    background:#000000c4; padding:24px 14px; }
+  .modal.open{ display:flex; }
+  .sheet{ background:#0d1218; border:1px solid #263039; border-radius:12px; width:min(720px,100%);
+    max-height:100%; display:flex; flex-direction:column; box-shadow:0 18px 50px #000c; }
+  .sheet header{ display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:14px 18px; border-bottom:1px solid #1c242d; }
+  .sheet header h2{ margin:0; font-size:14px; font-weight:600; color:#dbe4ea; letter-spacing:.3px; }
+  .sheet header h2 span{ color:var(--oel); }
+  .sheet .close{ padding:4px 10px; line-height:1; font-size:16px; }
+  .sheet .body{ overflow:auto; padding:4px 18px 18px; color:#9aa7b3; font-size:13px; }
+  .sheet .body h2{ font-size:13px; color:#5f6c78; text-transform:uppercase; letter-spacing:.5px;
+    margin:18px 0 6px; font-weight:600; }
+  .sheet .body h3{ font-size:14px; color:var(--oel); margin:20px 0 4px; font-weight:600; }
+  .sheet .body h4{ font-size:12px; color:#dbe4ea; margin:14px 0 4px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.4px; }
+  .sheet .body p{ margin:6px 0; }
+  .sheet .body ul{ margin:6px 0; padding-left:18px; }
+  .sheet .body li{ margin:4px 0; }
+  .sheet .body code{ font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;
+    background:#12e0ff10; border:1px solid #1c242d; border-radius:3px; padding:0 4px; color:#b8c6d1; }
+  .sheet .body a{ color:var(--oel); text-decoration:none; }
+  .sheet .body a:hover{ text-decoration:underline; }
 </style>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-HRQRC6NR8F"></script>
@@ -92,7 +122,10 @@
     <button id="expWebm">⬇ WebM</button>
     <span class="meta" id="expStatus"></span>
   </div>
-  <div class="meta" id="meta">loading…</div>
+  <div class="metarow">
+    <div class="meta" id="meta">loading…</div>
+    <span class="hint"><kbd>←</kbd><kbd>→</kbd> browse</span>
+  </div>
   <div class="files" id="files"></div>
 
   <div class="drop" id="drop">Drop a <code>.lkd</code> here, or click to choose (adds to the list above)
@@ -105,8 +138,20 @@
       <span>View on GitHub</span>
     </a>
     <span class="sep">&#183;</span>
+    <button type="button" class="linkbtn" id="clogOpen">Changelog</button>
+    <span class="sep">&#183;</span>
     <span>developed by <a href="https://github.com/youxufkhan" target="_blank" rel="noopener">youxufkhan</a></span>
   </footer>
+
+  <div class="modal" id="clog" role="dialog" aria-modal="true" aria-labelledby="clogTitle">
+    <div class="sheet">
+      <header>
+        <h2 id="clogTitle">Carozerra <span>changelog</span></h2>
+        <button type="button" class="close" id="clogClose" aria-label="Close">&times;</button>
+      </header>
+      <div class="body" id="clogBody"></div>
+    </div>
+  </div>
 
 <script type="module">
 import { GIFEncoder, quantize, applyPalette } from './gifenc.esm.js';
@@ -330,7 +375,9 @@ function downloadBlob(blob,filename){
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
+let exportBusy=false;
 function setExportBusy(busy){
+  exportBusy=busy;   // the chips are only pointer-events:none below, so keyboard nav needs its own read of this
   $('#expGif').disabled=busy; $('#expWebm').disabled=busy;
   $('#play').disabled=busy; $('#scrub').disabled=busy;
   $('#files').style.pointerEvents=busy?'none':''; $('#files').style.opacity=busy?'.5':'';
@@ -428,6 +475,114 @@ $('#play').onclick=e=>{ playing=!playing; e.target.textContent=playing?'⏸ Paus
 $('#fps').oninput=e=>{ fps=+e.target.value; $('#fpsv').textContent=fps+'fps'; };
 $('#fx').onchange=e=>oel.classList.toggle('fx',e.target.checked);
 $('#scrub').oninput=e=>{ cur=+e.target.value; playing=false; $('#play').textContent='▶ Play'; draw(); };
+
+// ←/→ step through the gallery. ↑/↓ are reserved for prev/next unit skin (ROADMAP) —
+// unimplemented until more than one faceplate exists.
+const isFormEl=el=>!!el&&(/^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)||el.isContentEditable);
+document.addEventListener('keydown',e=>{
+  const d=e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0;
+  if(!d||e.ctrlKey||e.metaKey||e.altKey) return;
+  if(isFormEl(e.target)||isFormEl(document.activeElement)) return;   // the Speed/Frame sliders answer arrows natively — never steal them
+  if(exportBusy) return;                                             // swapping strip/FW/FH mid-export would corrupt it
+  if($('#clog').classList.contains('open')) return;                  // don't shuffle the player behind an open modal
+  const chips=[...document.querySelectorAll('#files .chip')];        // the DOM *is* the display order, Custom section included
+  if(!chips.length) return;
+  e.preventDefault();
+  const i=chips.findIndex(el=>el.classList.contains('active'));
+  const next=chips[i<0?0:(i+d+chips.length)%chips.length];
+  next.click();                                // same path a mouse click takes: useStrip + setActiveChip
+  next.scrollIntoView({block:'nearest'});      // instant, not smooth: held-down arrows queue smooth scrolls and lag behind the selection
+});
+
+// ---- changelog modal -------------------------------------------------------
+// CHANGELOG.md is fetched at click time rather than duplicated into this page,
+// so it can't drift from the file we actually maintain. It's staged into web/
+// at deploy time alongside the clips (see .github/workflows/pages.yml).
+const CHANGELOG_URL='https://github.com/youxufkhan/carozerra/blob/main/CHANGELOG.md';
+
+const safeHref=u=>{
+  try{ const p=new URL(u,location.href).protocol;
+       return (p==='http:'||p==='https:'||p==='mailto:')?u:'#'; }
+  catch{ return '#'; }
+};
+
+function renderInline(text,parent){
+  const re=/`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)/g;
+  let last=0,m;
+  while((m=re.exec(text))){
+    if(m.index>last) parent.append(text.slice(last,m.index));
+    if(m[1]!=null){ const c=document.createElement('code'); c.textContent=m[1]; parent.append(c); }
+    else{ const a=document.createElement('a');
+          a.href=safeHref(m[3]); a.textContent=m[2]; a.target='_blank'; a.rel='noopener noreferrer';
+          parent.append(a); }
+    last=re.lastIndex;
+  }
+  if(last<text.length) parent.append(text.slice(last));
+}
+
+// just enough markdown for our own changelog — headings, bullet lists, paragraphs,
+// inline code and links — built as DOM nodes, never innerHTML
+function mdToDom(md){
+  const frag=document.createDocumentFragment();
+  let ul=null, para=[];
+  const flushPara=()=>{ if(!para.length) return;
+    const p=document.createElement('p'); renderInline(para.join(' '),p); frag.append(p); para=[]; };
+  for(const raw of md.split('\n')){
+    const line=raw.trim();
+    const h=/^(#{1,6})\s+(.*)$/.exec(line), li=/^[-*]\s+(.*)$/.exec(line);
+    if(li){
+      flushPara();
+      if(!ul){ ul=document.createElement('ul'); frag.append(ul); }
+      const el=document.createElement('li'); renderInline(li[1],el); ul.append(el);
+      continue;
+    }
+    ul=null;
+    if(h){
+      flushPara();
+      if(h[1].length===1) continue;   // the file's own "# Changelog" — the modal header already says it
+      const el=document.createElement('h'+Math.min(h[1].length+1,6));  // demote one level: the page's <h1> is the title
+      renderInline(h[2],el); frag.append(el);
+      continue;
+    }
+    if(!line){ flushPara(); continue; }
+    para.push(line);
+  }
+  flushPara();
+  return frag;
+}
+
+const clog=$('#clog'), clogBody=$('#clogBody');
+let clogLoaded=false;
+
+async function openChangelog(){
+  clog.classList.add('open');
+  $('#clogClose').focus();
+  if(clogLoaded) return;
+  clogBody.textContent='loading…';
+  try{
+    const r=await fetch('CHANGELOG.md',{cache:'no-cache'});
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    const md=await r.text();
+    clogBody.textContent=''; clogBody.append(mdToDom(md));
+    clogLoaded=true;
+  }catch(err){
+    // absent on a bare file:// open, or a local preview that skipped the copy step
+    clogBody.textContent='';
+    const p=document.createElement('p');
+    const a=document.createElement('a');
+    a.href=CHANGELOG_URL; a.target='_blank'; a.rel='noopener noreferrer'; a.textContent='Read it on GitHub';
+    p.append(`Couldn't load the changelog here (${err.message}). `,a,'.');
+    clogBody.append(p);
+  }
+}
+const closeChangelog=()=>{ clog.classList.remove('open'); $('#clogOpen').focus(); };
+
+$('#clogOpen').onclick=openChangelog;
+$('#clogClose').onclick=closeChangelog;
+clog.onclick=e=>{ if(e.target===clog) closeChangelog(); };   // backdrop only, not the sheet
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&clog.classList.contains('open')){ e.preventDefault(); closeChangelog(); }
+});
 
 const drop=$('#drop'), fileInput=$('#file');
 drop.onclick=()=>fileInput.click();

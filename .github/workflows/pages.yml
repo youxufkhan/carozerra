@@ -6,6 +6,7 @@ on:
     paths:
       - web/**
       - assets/**
+      - CHANGELOG.md
       - .github/workflows/pages.yml
   workflow_dispatch:
 
@@ -32,6 +33,7 @@ jobs:
           mkdir -p web/clips
           cp assets/pioneer.png web/pioneer.png
           cp assets/clips/*.lkd web/clips/
+          cp CHANGELOG.md web/CHANGELOG.md   # fetched at runtime by the in-page changelog modal
 
       - uses: actions/configure-pages@v5
 

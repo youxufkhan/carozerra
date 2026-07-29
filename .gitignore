@@ -12,10 +12,12 @@ packaging/dist/
 packaging/build/
 *.deb
 
-# web/ assets are staged from assets/ at deploy time (see .github/workflows/pages.yml)
-# and for local preview (see README) — not duplicated in git.
+# web/ assets are staged from assets/ (and CHANGELOG.md) at deploy time
+# (see .github/workflows/pages.yml) and for local preview (see README) —
+# not duplicated in git.
 web/pioneer.png
 web/clips/
+web/CHANGELOG.md
 
 # community-contributed raw disc dumps — source material for assets/clips/,
 # not itself shipped (contains large installer binaries + redundant mirrors)
