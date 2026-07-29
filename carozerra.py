@@ -10,6 +10,17 @@ OEL animations on the head-unit's blue screen. The stereo's own controls work:
   right nav knob   left|right switch clip, up|down change speed
   FUNC button      toggle retro glow
   ESC (top-right)  quit
+  body / edges     drag to move / resize the window
+
+...and the keyboard mirrors them:
+
+  <- ->            prev / next clip
+  up / down        animation speed
+  F                toggle retro glow
+  1-6              preset / animation
+  Esc              quit
+  F1               show the control-map overlay (also shown for a few
+                   seconds at launch; see HELP_FULL / _draw_help)
 
 Native PyQt6 — reuses decode_lkd() from decode.py for decoding only.
 """
@@ -22,7 +33,7 @@ import sys
 
 from PyQt6.QtCore import Qt, QRectF, QTimer, QPointF
 from PyQt6.QtGui import (QImage, QPixmap, QPainter, QColor, QPainterPath,
-                         QGuiApplication)
+                         QGuiApplication, QFont, QFontMetricsF, QPen)
 from PyQt6.QtWidgets import QApplication, QWidget
 
 from decode import decode_lkd
@@ -56,6 +67,45 @@ G = {
 
 FPS_MIN, FPS_MAX = 4, 30
 EDGE = 8  # px border for resize grab
+
+# ---- control-map overlay ----------------------------------------------------
+# Shown automatically on launch and re-openable with F1. Two side-by-side
+# groups: what the head-unit's own buttons do, and the keyboard equivalents.
+HELP_FULL = (
+    ("HEAD UNIT", (("PRESET 1-6",  "switch animation"),
+                   ("LEFT KNOB",   "drag / scroll = volume"),
+                   ("NAV ← →", "prev / next clip"),
+                   ("NAV ↑ ↓", "animation speed"),
+                   ("FUNC",        "toggle retro glow"),
+                   ("ESC",         "quit"),
+                   ("BODY / EDGE", "drag to move / resize"))),
+    ("KEYBOARD",  ((" ← →", "prev / next clip"),
+                   (" ↑ ↓", "animation speed"),
+                   ("F",       "toggle retro glow"),
+                   ("1 - 6",   "preset / animation"),
+                   ("F1",      "show this help"),
+                   ("Esc",     "quit"))),
+)
+# Degraded layout: near the ~519x167 minimum window size the full table can't
+# be drawn legibly, so we drop to a keys-only shortlist (no group header) and
+# point the user at the faceplate. _draw_help picks whichever one fits.
+HELP_COMPACT = (
+    ("", (("1 - 6", "preset"), (" ← →", "clip"),
+          (" ↑ ↓", "speed"), ("F", "glow"),
+          ("F1", "help"), ("Esc", "quit"))),
+)
+HELP_LAYOUTS = ((HELP_FULL, "CAROZERRA — CONTROLS",
+                 "click anywhere or wait — F1 reopens"),
+                (HELP_COMPACT, "CONTROLS",
+                 "faceplate buttons work too · F1 reopens"))
+HELP_FS = 20.0    # row font size in faceplate units, scaled by fit()'s factor
+HELP_MS = 5000    # ~5s: two unhurried passes over a 13-row table, then gone
+HELP_OEL = QColor(18, 224, 255)   # the OEL cyan the web player uses (#12e0ff)
+HELP_EDGE = QColor(18, 224, 255, 150)     # panel border
+HELP_HDR = QColor(18, 224, 255, 165)      # group headers, dimmed
+HELP_BG = QColor(8, 12, 16, 234)          # backdrop, opaque enough to read over
+HELP_TXT = QColor(214, 226, 234)          # action descriptions
+HELP_DIM = QColor(140, 162, 176)          # footer hint
 
 # ---- system volume (PipeWire wpctl, fallback PulseAudio pactl) --------------
 _WPCTL = shutil.which("wpctl")
@@ -122,6 +172,15 @@ class Stereo(QWidget):
         self.timer.timeout.connect(self._advance)
         self.timer.start(1000 // self.fps)
 
+        # a member single-shot QTimer rather than a bare QTimer.singleShot: it
+        # can be restarted/cancelled, so a stale callback can't hide an overlay
+        # the user just re-opened with F1
+        self.help_on = False
+        self._help_timer = QTimer(self)
+        self._help_timer.setSingleShot(True)
+        self._help_timer.timeout.connect(self._hide_help)
+        self._show_help()                       # greet with the control map
+
     # --- assets -------------------------------------------------------------
     def _build_knob(self):
         cx, cy = G["lknob"]
@@ -158,6 +217,8 @@ class Stereo(QWidget):
                      sw * fr.width(), sh * fr.height())
         self._draw_screen(p, scr)
         self._draw_knob(p, fr)
+        if self.help_on:
+            self._draw_help(p, fr, s)
 
     def _draw_screen(self, p, rect):
         img = self.clips[self.clip][self.frame]
@@ -195,6 +256,95 @@ class Stereo(QWidget):
         p.drawPixmap(QRectF(-R, -R, 2 * R, 2 * R), self.knob,
                      QRectF(self.knob.rect()))
         p.restore()
+
+    # --- help overlay -------------------------------------------------------
+    def _help_layout(self, groups, title, foot, s):
+        """Measure the panel from the actual font metrics (not fixed fractions)
+        so it can never clip its own text. Row size tracks fit()'s scale, with
+        a 9px floor so it stays readable at the minimum window size."""
+        fs = max(9.0, HELP_FS * s)
+        f_row = QFont(self.font()); f_row.setPixelSize(int(round(fs)))
+        f_key = QFont(f_row); f_key.setBold(True)
+        f_ttl = QFont(f_key); f_ttl.setPixelSize(int(round(fs * 1.15)))
+        f_ft = QFont(f_row); f_ft.setPixelSize(max(8, int(round(fs * 0.85))))
+        mk, md = QFontMetricsF(f_key), QFontMetricsF(f_row)
+        mt, mf = QFontMetricsF(f_ttl), QFontMetricsF(f_ft)
+
+        pad, gkd, gcol, rowh = fs * 1.1, fs * 0.9, fs * 2.0, fs * 1.45
+        cols, rows = [], 0
+        for name, items in groups:
+            kw = max(mk.horizontalAdvance(k) for k, _ in items)
+            dw = max(md.horizontalAdvance(d) for _, d in items)
+            cols.append((name, items, kw,
+                         max(kw + gkd + dw, mk.horizontalAdvance(name))))
+            rows = max(rows, len(items))
+        hdr = rowh if any(c[0] for c in cols) else 0.0   # group headers?
+        inner_w = max(sum(c[3] for c in cols) + gcol * (len(cols) - 1),
+                      mt.horizontalAdvance(title), mf.horizontalAdvance(foot))
+        inner_h = (mt.height() + fs * .6 + hdr + rows * rowh
+                   + fs * .6 + mf.height())
+        return dict(fs=fs, row=f_row, key=f_key, ttl=f_ttl, ft=f_ft, md=md,
+                    mt=mt, mf=mf, pad=pad, gkd=gkd, gcol=gcol, rowh=rowh,
+                    hdr=hdr, cols=cols, rows=rows, title=title, foot=foot,
+                    w=inner_w + 2 * pad, h=inner_h + 2 * pad)
+
+    def _draw_help(self, p, fr, s):
+        """Dark rounded panel over the faceplate listing every control."""
+        # take the first layout that fits with room to breathe. Height is the
+        # binding constraint (the font hits its 9px floor before the panel
+        # stops shrinking), so it gets the tighter budget — at .92 the full
+        # table technically "fits" a 543x175 window while looking edge-to-edge.
+        for groups, ttl, foot in HELP_LAYOUTS:                # full, then compact
+            L = self._help_layout(groups, ttl, foot, s)
+            if L["w"] <= .92 * self.width() and L["h"] <= .78 * self.height():
+                break                          # else fall through to compact
+
+        p.save()
+        p.setOpacity(1.0)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        box = QRectF(fr.center().x() - L["w"] / 2, fr.center().y() - L["h"] / 2,
+                     L["w"], L["h"])
+        path = QPainterPath(); path.addRoundedRect(box, L["fs"], L["fs"])
+        p.fillPath(path, HELP_BG)
+        pen = QPen(HELP_EDGE); pen.setWidthF(max(1.0, s * 1.6))
+        p.setPen(pen); p.drawPath(path)
+
+        asc, x = L["md"].ascent(), box.x() + L["pad"]
+        y = box.y() + L["pad"]
+        p.setFont(L["ttl"]); p.setPen(HELP_OEL)
+        p.drawText(QPointF(x, y + L["mt"].ascent()), L["title"])
+        y += L["mt"].height() + L["fs"] * .6
+
+        gx = x
+        for name, items, kw, gw in L["cols"]:
+            ry = y
+            if L["hdr"]:
+                p.setFont(L["key"]); p.setPen(HELP_HDR)
+                p.drawText(QPointF(gx, ry + asc), name)
+                ry += L["hdr"]
+            for k, d in items:
+                p.setFont(L["key"]); p.setPen(HELP_OEL)
+                p.drawText(QPointF(gx, ry + asc), k)
+                p.setFont(L["row"]); p.setPen(HELP_TXT)
+                p.drawText(QPointF(gx + kw + L["gkd"], ry + asc), d)
+                ry += L["rowh"]
+            gx += gw + L["gcol"]
+
+        y += L["hdr"] + L["rows"] * L["rowh"] + L["fs"] * .6
+        p.setFont(L["ft"]); p.setPen(HELP_DIM)
+        p.drawText(QPointF(x, y + L["mf"].ascent()), L["foot"])
+        p.restore()
+
+    def _show_help(self):
+        self.help_on = True
+        self._help_timer.start(HELP_MS)      # restarts the countdown if running
+        self.update()
+
+    def _hide_help(self):
+        if self.help_on:
+            self.help_on = False
+            self._help_timer.stop()
+            self.update()
 
     # --- animation ----------------------------------------------------------
     def _advance(self):
@@ -249,6 +399,10 @@ class Stereo(QWidget):
         return (None, None)
 
     def mousePressEvent(self, e):
+        # while the help panel is up ANY click only dismisses it — never also
+        # fires the control underneath (else "click to dismiss" could hit ESC)
+        if self.help_on:
+            self._hide_help(); return
         if e.button() != Qt.MouseButton.LeftButton:
             return
         mask = self._edges(e.position())
@@ -283,10 +437,23 @@ class Stereo(QWidget):
         self._drag_knob = False
 
     def wheelEvent(self, e):
+        self._hide_help()
         self._set_vol(self.vol + (3 if e.angleDelta().y() > 0 else -3))
 
     def keyPressEvent(self, e):
         k = e.key()
+        if k == Qt.Key.Key_F1:          # toggle, so it never feels stuck
+            self._show_help() if not self.help_on else self._hide_help()
+            return
+        # Esc closes the overlay before it quits: dismissing a popup with Esc is
+        # the near-universal instinct, and the costs are lopsided — an extra
+        # keypress if you did mean quit, versus losing the app if you didn't.
+        if k == Qt.Key.Key_Escape and self.help_on:
+            self._hide_help()
+            return
+        # otherwise a keypress is unambiguous (unlike a click), so it dismisses
+        # the help AND still performs its action
+        self._hide_help()
         if k == Qt.Key.Key_Escape:      self.close()
         elif k == Qt.Key.Key_Right:     self._set_clip(self.clip + 1)
         elif k == Qt.Key.Key_Left:      self._set_clip(self.clip - 1)
