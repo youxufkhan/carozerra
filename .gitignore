@@ -17,5 +17,9 @@ packaging/build/
 web/pioneer.png
 web/clips/
 
+# community-contributed raw disc dumps — source material for assets/clips/,
+# not itself shipped (contains large installer binaries + redundant mirrors)
+found_discs/
+
 # OS
 .DS_Store
