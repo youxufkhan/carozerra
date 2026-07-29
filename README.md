@@ -62,10 +62,15 @@ the output) are available via the Export buttons.
 
 > Requires a browser with `DecompressionStream` (current Chrome/Firefox/Edge).
 
+`←→` browse the gallery, and the footer's **Changelog** link opens
+`CHANGELOG.md` in a modal — fetched at click time, so it never drifts from the
+file in the repo.
+
 To preview locally: `python3 -m http.server -d web 8000`, then open
-`http://localhost:8000`. (`assets/pioneer.png` and `assets/clips/*.lkd` need
-to be copied into `web/pioneer.png` / `web/clips/` first — the CI workflow
-does this automatically at deploy time; see `.github/workflows/pages.yml`.)
+`http://localhost:8000`. (`assets/pioneer.png`, `assets/clips/*.lkd` and
+`CHANGELOG.md` need to be copied into `web/pioneer.png` / `web/clips/` /
+`web/CHANGELOG.md` first — the CI workflow does this automatically at deploy
+time; see `.github/workflows/pages.yml`.)
 
 ## Desktop app (Linux / Debian)
 
@@ -86,7 +91,11 @@ controls wired to real actions.
 | **ESC** (top-right) | quit |
 | drag body / edges | move / resize the window (aspect-locked) |
 
-Keyboard: `←→` clip, `↑↓` speed, `F` glow, `1–6`, `Esc`.
+Keyboard: `←→` clip, `↑↓` speed, `F` glow, `1–6`, `F1` control map, `Esc`.
+
+The control map above is also shown on the faceplate for a few seconds at
+launch, and `F1` brings it back. `Esc` closes it rather than quitting, so
+dismissing the overlay can't take the app down with it.
 
 **Install the `.deb`** (see [Releases](../../releases) for the latest build):
 
