@@ -1,0 +1,77 @@
+name: Build .exe (check)
+
+# Validates the Windows build still builds AND still runs whenever app or
+# packaging files change on main. Does NOT create a release — see release.yml
+# for the tag-triggered .deb; the .exe is not part of a release yet.
+#
+# The runner has an interactive desktop session, so this is real testing and
+# not just a compile: packaging/smoke-windows.ps1 renders a frame via
+# `carozerra.exe --selftest`, then launches the exe for real and screenshots
+# the desktop. Both PNGs are uploaded — a Linux-only maintainer can look at
+# what Windows actually drew.
+on:
+  push:
+    branches: [main]
+    paths:
+      - carozerra.py
+      - decode.py
+      - assets/**
+      - packaging/carozerra.spec
+      - packaging/make-ico.py
+      - packaging/smoke-windows.ps1
+      - .github/workflows/windows-check.yml
+  # also on PRs: workflow_dispatch only appears for workflows already on the
+  # default branch, so a PR run is the only way to test a Windows change
+  # before it lands
+  pull_request:
+    paths:
+      - carozerra.py
+      - decode.py
+      - assets/**
+      - packaging/carozerra.spec
+      - packaging/make-ico.py
+      - packaging/smoke-windows.ps1
+      - .github/workflows/windows-check.yml
+  workflow_dispatch:
+
+jobs:
+  build-check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build deps
+        run: pip install "PyQt6==6.*" "pillow==11.*" "pyinstaller==6.*"
+
+      - name: Generate icon
+        run: python packaging/make-ico.py
+
+      - name: Build exe
+        run: pyinstaller --clean --noconfirm packaging/carozerra.spec
+
+      - name: Inspect exe
+        run: |
+          Get-Item dist/carozerra.exe | Format-List Name, Length, LastWriteTime
+          (Get-Item dist/carozerra.exe).VersionInfo | Format-List
+
+      - name: Smoke test (render + launch + screenshot)
+        # Windows PowerShell 5.1, not the default pwsh 7: the screen capture
+        # uses System.Windows.Forms / System.Drawing, which are .NET Framework
+        # assemblies that Add-Type can't reliably resolve under .NET Core.
+        shell: powershell
+        run: ./packaging/smoke-windows.ps1 -Exe dist/carozerra.exe -OutDir smoke
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: carozerra-exe-ci
+          path: dist/carozerra.exe
+
+      - uses: actions/upload-artifact@v4
+        if: always()   # the screenshots are most useful when the smoke test failed
+        with:
+          name: carozerra-windows-smoke
+          path: smoke/*.png

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Windows build (unreleased, CI-only for now): `packaging/carozerra.spec` builds a single `carozerra.exe` via PyInstaller, bundling only the clips `carozerra.py`'s `CLIPS` actually opens — the same payload rule the `.deb` follows.
+- `packaging/make-ico.py` generates the Windows icon from `assets/pioneer.png` at build time (letterboxed onto a transparent square) rather than committing a binary that could drift from the faceplate art.
+- Desktop app: `carozerra.py --selftest <out.png>` renders one frame and exits, so a build can be verified without a human at a screen. Used by CI.
+- CI: `windows-check.yml` builds the `.exe` on `windows-latest`, then runs `packaging/smoke-windows.ps1` — a `--selftest` render followed by a real interactive launch that confirms the process survives, owns a top-level window, and screenshots the desktop. The exe and both PNGs are uploaded as artifacts.
+
+### Fixed
+- Desktop app: assets are now located via `sys._MEIPASS` when running as a frozen build, so a packaged `.exe` finds `assets/` instead of looking beside a path that doesn't exist at run time. No effect when running from source or from the `.deb`.
+
 ## [1.2.0] - 2026-07-30
 
 ### Added
