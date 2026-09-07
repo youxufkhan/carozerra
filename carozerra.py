@@ -23,6 +23,9 @@ OEL animations on the head-unit's blue screen. The stereo's own controls work:
                    seconds at launch; see HELP_FULL / _draw_help)
 
 Native PyQt6 — reuses decode_lkd() from decode.py for decoding only.
+
+Run with `--selftest <out.png>` to render a single frame and exit; CI uses it
+to prove a packaged build actually draws (see packaging/smoke-windows.ps1).
 """
 import math
 import os
@@ -38,7 +41,10 @@ from PyQt6.QtWidgets import QApplication, QWidget
 
 from decode import decode_lkd
 
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
+# Running from source, assets/ sits next to this file. A PyInstaller build
+# unpacks the bundled assets/ into a temp dir and points sys._MEIPASS at it,
+# so the frozen exe has to look there instead (see packaging/carozerra.spec).
+APP_DIR = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 # pioneer.png is 1600x893 but the visible faceplate (non-transparent bbox, via
 # PIL Image.open("assets/pioneer.png").getbbox() -> (22, 204, 1581, 707) as
 # (left, top, right, bottom)) is only 1559x503 -> crop to that so the floating
@@ -463,9 +469,44 @@ class Stereo(QWidget):
         elif Qt.Key.Key_1 <= k <= Qt.Key.Key_6: self._set_clip(k - Qt.Key.Key_1)
 
 
+def _selftest(out_path):
+    """Render one frame to `out_path`; return an exit code. Used by CI.
+
+    A frozen build's failure modes are quiet: a missing Qt platform plugin, an
+    assets/ tree that never got unpacked next to sys._MEIPASS, a paint path
+    that draws nothing. "The process stayed alive" catches none of those, so
+    grab the widget and check the pixels actually vary — that proves the
+    faceplate pixmap and a decoded clip frame both rendered.
+    """
+    w = Stereo()
+    w.resize(BASE_W // 2, BASE_H // 2)
+    w.show()
+    QApplication.processEvents()
+    img = w.grab().toImage()
+    if img.isNull():
+        print("selftest: grab() returned a null image", file=sys.stderr)
+        return 1
+    # every 7th pixel on both axes — enough to tell a drawn faceplate from a
+    # flat fill without walking ~350k pixels
+    seen = {img.pixel(x, y)
+            for y in range(0, img.height(), 7)
+            for x in range(0, img.width(), 7)}
+    img.save(out_path)
+    print(f"selftest: {img.width()}x{img.height()}, {len(seen)} distinct "
+          f"sampled colours -> {out_path}")
+    if len(seen) < 32:
+        print("selftest: looks blank (too few distinct colours)", file=sys.stderr)
+        return 1
+    return 0
+
+
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Carozerra")
+    argv = sys.argv[1:]
+    if "--selftest" in argv:
+        rest = [a for a in argv if a != "--selftest"]
+        sys.exit(_selftest(rest[0] if rest else "selftest.png"))
     w = Stereo(); w.show()
     sys.exit(app.exec())
 

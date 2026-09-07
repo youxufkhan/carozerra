@@ -116,6 +116,41 @@ System volume uses `wpctl` (PipeWire) with a `pactl` fallback. All 8
 animations are preloaded from `assets/` — no drag-drop or upload in the
 desktop app (that's a web-player-only feature).
 
+### Windows (in progress — not released yet)
+
+No Windows release exists yet; the `.deb` is still the only shipped build.
+What exists today is a reproducible build plus an automated check:
+
+```powershell
+pip install PyQt6 pillow pyinstaller
+python packaging/make-ico.py            # icon, generated from the faceplate art
+pyinstaller --clean --noconfirm packaging/carozerra.spec
+dist\carozerra.exe
+```
+
+Every push touching the app or its packaging builds that `.exe` on a
+`windows-latest` runner and smoke-tests it via `packaging/smoke-windows.ps1`:
+first `carozerra.exe --selftest out.png`, which renders one frame and exits
+(so a build can be checked without a human at a screen), then a real
+interactive launch that has to survive, own a top-level window, and be
+screenshotted. Both PNGs and the exe are uploaded as artifacts of the
+"Build .exe (check)" run — enough for a Linux-only maintainer to see what
+Windows actually drew.
+
+Known gaps before this can be a release:
+
+- **The volume knob does nothing.** It drives `wpctl`/`pactl`, neither of
+  which exists on Windows, so `get_volume()` returns a fixed 50 and the knob
+  turns while lying. Needs either `pycaw` or an explicit disable.
+- **The exe is unsigned**, so SmartScreen will warn, and antivirus false
+  positives on PyInstaller output are common. (UPX compression is off in the
+  spec for the same reason.)
+- **It is large** — 46.7 MB, because a onefile PyQt6 bundle carries all of Qt.
+- **Only a CI runner has run it**, and that runner is Windows Server 2025 at
+  1024x768. The launch screenshot confirms DWM composites the frameless
+  translucent window correctly and a clip plays, but edge-drag resize and
+  HiDPI scaling still need eyes on a real Windows 10/11 desktop.
+
 Geometry (screen rect, knob centers, button hitboxes) lives in the `G` dict
 at the top of `carozerra.py` as fractions of the faceplate, so it scales with
 the window and is easy to re-tune against a different photo.
