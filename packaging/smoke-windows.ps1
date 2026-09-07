@@ -33,8 +33,18 @@ $OutDir = (Resolve-Path $OutDir).Path
 
 Write-Host "== pass 1: --selftest =="
 $selftestPng = Join-Path $OutDir "selftest.png"
-& $Exe --selftest $selftestPng
-if ($LASTEXITCODE -ne 0) { throw "--selftest exited $LASTEXITCODE" }
+# The exe is built windowed (console=False), so `& $Exe` returns immediately
+# and never sets $LASTEXITCODE -- PowerShell only waits on console
+# subsystem programs. Start-Process + WaitForExit is the one that actually
+# blocks, and the timeout means a hung render can't wedge the job.
+$st = Start-Process -FilePath $Exe -ArgumentList @("--selftest", $selftestPng) `
+                    -PassThru -NoNewWindow
+if (-not $st.WaitForExit(60000)) {
+  Stop-Process -Id $st.Id -Force
+  throw "--selftest did not exit within 60s"
+}
+$st.Refresh()
+if ($st.ExitCode -ne 0) { throw "--selftest exited $($st.ExitCode)" }
 if (-not (Test-Path $selftestPng)) { throw "--selftest wrote no image" }
 $size = (Get-Item $selftestPng).Length
 Write-Host "selftest.png: $size bytes"
