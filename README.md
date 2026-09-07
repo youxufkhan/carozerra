@@ -145,10 +145,11 @@ Known gaps before this can be a release:
 - **The exe is unsigned**, so SmartScreen will warn, and antivirus false
   positives on PyInstaller output are common. (UPX compression is off in the
   spec for the same reason.)
-- **It is large** — the equivalent Linux onefile build comes out at 118 MB,
-  because a onefile PyQt6 bundle carries all of Qt.
-- **Only the CI runner has run it.** DWM translucency, edge-drag resize and
-  HiDPI scaling all still need eyes on a real Windows desktop.
+- **It is large** — 46.7 MB, because a onefile PyQt6 bundle carries all of Qt.
+- **Only a CI runner has run it**, and that runner is Windows Server 2025 at
+  1024x768. The launch screenshot confirms DWM composites the frameless
+  translucent window correctly and a clip plays, but edge-drag resize and
+  HiDPI scaling still need eyes on a real Windows 10/11 desktop.
 
 Geometry (screen rect, knob centers, button hitboxes) lives in the `G` dict
 at the top of `carozerra.py` as fractions of the faceplate, so it scales with
