@@ -116,10 +116,13 @@ System volume uses `wpctl` (PipeWire) with a `pactl` fallback. All 8
 animations are preloaded from `assets/` — no drag-drop or upload in the
 desktop app (that's a web-player-only feature).
 
-### Windows (in progress — not released yet)
+### Windows (beta)
 
-No Windows release exists yet; the `.deb` is still the only shipped build.
-What exists today is a reproducible build plus an automated check:
+**Install:** grab `carozerra_<version>_windows_x64.exe` from the latest
+[prerelease](../../releases) and run it. First launch will trigger a
+SmartScreen warning — the binary isn't code-signed (see below).
+
+**Or build it yourself:**
 
 ```powershell
 pip install PyQt6 pillow pyinstaller
@@ -133,23 +136,22 @@ Every push touching the app or its packaging builds that `.exe` on a
 first `carozerra.exe --selftest out.png`, which renders one frame and exits
 (so a build can be checked without a human at a screen), then a real
 interactive launch that has to survive, own a top-level window, and be
-screenshotted. Both PNGs and the exe are uploaded as artifacts of the
-"Build .exe (check)" run — enough for a Linux-only maintainer to see what
-Windows actually drew.
+screenshotted. `release.yml` runs the same sequence again before attaching
+the `.exe` to a tagged release.
 
-Known gaps before this can be a release:
+Why beta, not a full release:
 
 - **The volume knob does nothing.** It drives `wpctl`/`pactl`, neither of
   which exists on Windows, so `get_volume()` returns a fixed 50 and the knob
   turns while lying. Needs either `pycaw` or an explicit disable.
 - **The exe is unsigned**, so SmartScreen will warn, and antivirus false
   positives on PyInstaller output are common. (UPX compression is off in the
-  spec for the same reason.)
-- **It is large** — 46.7 MB, because a onefile PyQt6 bundle carries all of Qt.
-- **Only a CI runner has run it**, and that runner is Windows Server 2025 at
-  1024x768. The launch screenshot confirms DWM composites the frameless
-  translucent window correctly and a clip plays, but edge-drag resize and
-  HiDPI scaling still need eyes on a real Windows 10/11 desktop.
+  spec for the same reason.) Code signing costs money; not done yet.
+
+It is large (46.7 MB, because a onefile PyQt6 bundle carries all of Qt) but
+otherwise works: CI's launch screenshot shows DWM compositing the frameless
+translucent window correctly with a clip playing, and the author has run it
+by hand on a real Windows machine, resize and HiDPI included.
 
 Geometry (screen rect, knob centers, button hitboxes) lives in the `G` dict
 at the top of `carozerra.py` as fractions of the faceplate, so it scales with
@@ -179,8 +181,8 @@ website must go out before (or with) the tag — otherwise a new Release ships
 alongside a site still serving the previous player.
 
 ```bash
-git push origin main          # triggers packaging-check.yml + pages.yml
-# wait for both green, and confirm the live site picked up the new build
+git push origin main          # triggers packaging-check.yml + windows-check.yml + pages.yml
+# wait for all green, and confirm the live site picked up the new build
 git tag v1.2.0
 git push origin v1.2.0        # triggers release.yml
 ```
@@ -188,8 +190,15 @@ git push origin v1.2.0        # triggers release.yml
 Use the two-step push rather than `git push --tags`: that pushes only the tag,
 leaving `main` (and the site) behind.
 
-`release.yml` builds the `.deb` and attaches it to a new GitHub Release
-automatically. To build locally without releasing:
+`release.yml` builds the `.deb` and the Windows `.exe` and attaches both to a
+new GitHub Release automatically. A tag with a `-` suffix (e.g.
+`v1.3.0-beta.1`) is published as a **prerelease**; a clean `vX.Y.Z` is a
+normal release — the workflow reads that off the tag name, nothing to set by
+hand. (The `.deb`'s own version string swaps that `-` for dpkg's `~`, which
+sorts a prerelease *before* the final version it precedes — verify with
+`dpkg --compare-versions` if you're inventing a new prerelease scheme.)
+
+To build locally without releasing:
 
 ```bash
 packaging/build-deb.sh 1.2.0

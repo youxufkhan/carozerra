@@ -12,7 +12,50 @@ permissions:
   contents: write
 
 jobs:
+  build-windows:
+    # Same build+smoke sequence as windows-check.yml, copied rather than
+    # factored out (see below) so a release always ships the same thing CI
+    # already proved boots on windows-latest.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build deps
+        run: pip install "PyQt6==6.*" "pillow==11.*" "pyinstaller==6.*"
+
+      - name: Generate icon
+        run: python packaging/make-ico.py
+
+      - name: Build exe
+        run: pyinstaller --clean --noconfirm packaging/carozerra.spec
+
+      - name: Smoke test (render + launch + screenshot)
+        shell: powershell
+        run: ./packaging/smoke-windows.ps1 -Exe dist/carozerra.exe -OutDir smoke
+
+      - name: Rename for release
+        shell: powershell
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          Move-Item dist/carozerra.exe "dist/carozerra_${version}_windows_x64.exe"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: dist/carozerra_*_windows_x64.exe
+
+      - uses: actions/upload-artifact@v4
+        if: always()   # most useful when the smoke test failed
+        with:
+          name: windows-release-smoke
+          path: smoke/*.png
+
   release:
+    needs: build-windows
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,11 +65,29 @@ jobs:
 
       - name: Build .deb
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          # Debian version syntax splits on "-" as upstream/revision, which
+          # sorts a "-beta.1" suffix ABOVE the final release it precedes
+          # (verified with dpkg --compare-versions) -- exactly backwards for
+          # upgrades. "~" sorts before, which is what a prerelease needs, so
+          # translate the tag's semver hyphen to dpkg's tilde for this one
+          # step. The tag itself, and the .exe filename, keep the hyphen --
+          # only the .deb's version string needs the substitution.
+          VERSION="$(echo "${GITHUB_REF_NAME#v}" | tr '-' '~')"
           ./packaging/build-deb.sh "$VERSION"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-exe
+          path: dist-windows
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: packaging/dist/*.deb
+          # a tag with a "-" suffix (e.g. v1.3.0-beta.1) is a prerelease;
+          # a clean vX.Y.Z is a stable release -- no flag to remember to flip
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          body: ${{ contains(github.ref_name, '-') && 'Prerelease. See the README''s Windows section for known limitations before filing an issue.' || '' }}
           generate_release_notes: true
+          files: |
+            packaging/dist/*.deb
+            dist-windows/*.exe

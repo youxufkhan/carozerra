@@ -1,8 +1,9 @@
 name: Build .exe (check)
 
 # Validates the Windows build still builds AND still runs whenever app or
-# packaging files change on main. Does NOT create a release — see release.yml
-# for the tag-triggered .deb; the .exe is not part of a release yet.
+# packaging files change on main or a PR. Does NOT create a release —
+# release.yml runs this same build+smoke sequence again on a version tag
+# and attaches the resulting .exe.
 #
 # The runner has an interactive desktop session, so this is real testing and
 # not just a compile: packaging/smoke-windows.ps1 renders a frame via
