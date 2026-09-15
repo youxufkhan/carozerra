@@ -4,12 +4,11 @@ This document outlines the planned features, requested enhancements, and future 
 
 ## 🟢 High Priority / Quick Wins
 
-*   **Windows Build** — *build plumbing done, not released*
+*   **Windows Build** — *shipped as beta in v1.3.0-beta.1*
     *   *Details:* Package and release the desktop visualizer for Windows users, allowing the floating widget to run natively on Windows desktops.
-    *   *Done:* `packaging/carozerra.spec` builds a single 46.7 MB `carozerra.exe` (PyInstaller, onefile, no console), with the icon generated from the faceplate art at build time. `.github/workflows/windows-check.yml` builds it on every relevant change and smoke-tests it on `windows-latest`: a `carozerra.exe --selftest` render, then a real launch that has to survive, own a top-level window, and be screenshotted. The green run's screenshot confirms DWM composites the frameless translucent window correctly and a clip plays from inside the frozen exe.
-    *   *Open — decide before a release:* the **volume knob does nothing on Windows.** It drives `wpctl`/`pactl`, neither of which exists there, so `get_volume()` returns a fixed 50 and the knob turns while lying. Either wire it to `pycaw` (~0.5–1 day, real volume control) or disable the knob's volume role on Windows (~1 hour, honest but a dead control on the faceplate).
-    *   *Open — manual pass:* CI only ever runs it on Windows Server 2025 at 1024x768. Edge-drag resize and HiDPI scaling (125% / 150%) still need testing on a real Windows 10/11 desktop.
-    *   *Open — release wiring:* `release.yml` builds and attaches the `.deb` only. Attaching the `.exe` also means deciding how to handle an **unsigned** binary — SmartScreen will warn, and PyInstaller output draws antivirus false positives (UPX is deliberately off in the spec for that reason). Likely ships as a labelled beta prerelease first, with the warning documented.
+    *   *Done:* `packaging/carozerra.spec` builds a single 46.7 MB `carozerra.exe` (PyInstaller, onefile, no console), with the icon generated from the faceplate art at build time. `.github/workflows/windows-check.yml` builds and smoke-tests it on every relevant change; `release.yml` runs the same build+smoke and attaches the `.exe` to tagged releases. CI's screenshot confirms DWM composites the frameless translucent window correctly and a clip plays from inside the frozen exe — and the author has now run it by hand on a real Windows machine (resize and HiDPI included).
+    *   *Open — needed before a stable (non-beta) release:* the **volume knob does nothing on Windows.** It drives `wpctl`/`pactl`, neither of which exists there, so `get_volume()` returns a fixed 50 and the knob turns while lying. Either wire it to `pycaw` (~0.5–1 day, real volume control) or disable the knob's volume role on Windows (~1 hour, honest but a dead control on the faceplate).
+    *   *Open — inherent to an unsigned binary:* SmartScreen warns on first launch, and PyInstaller output draws antivirus false positives (UPX is deliberately off in the spec for that reason). Code signing costs money; until then this stays labelled beta with the warning documented in the README.
 
 ## 🟡 Medium Priority / Platform Expansion
 

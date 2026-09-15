@@ -7,14 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0-beta.1] - 2026-09-15
+
+**Windows build, beta.** First Windows release — a `carozerra.exe` attached
+alongside the `.deb`. Marked prerelease because of two known gaps (below):
+grab it and try it, but the desktop app's daily driver is still the `.deb`.
+
 ### Added
-- Windows build (unreleased, CI-only for now): `packaging/carozerra.spec` builds a single `carozerra.exe` via PyInstaller, bundling only the clips `carozerra.py`'s `CLIPS` actually opens — the same payload rule the `.deb` follows.
+- Windows build: `packaging/carozerra.spec` builds a single `carozerra.exe` via PyInstaller, bundling only the clips `carozerra.py`'s `CLIPS` actually opens — the same payload rule the `.deb` follows. 46.7 MB, unsigned (see Known limitations in the README).
 - `packaging/make-ico.py` generates the Windows icon from `assets/pioneer.png` at build time (letterboxed onto a transparent square) rather than committing a binary that could drift from the faceplate art.
-- Desktop app: `carozerra.py --selftest <out.png>` renders one frame and exits, so a build can be verified without a human at a screen. Used by CI.
-- CI: `windows-check.yml` builds the `.exe` on `windows-latest`, then runs `packaging/smoke-windows.ps1` — a `--selftest` render followed by a real interactive launch that confirms the process survives, owns a top-level window, and screenshots the desktop. The exe and both PNGs are uploaded as artifacts.
+- Desktop app: `carozerra.py --selftest <out.png>` renders one frame and exits, so a build can be verified without a human at a screen. Used by CI and by `release.yml`.
+- CI: `windows-check.yml` builds the `.exe` on `windows-latest` on every relevant push/PR, then runs `packaging/smoke-windows.ps1` — a `--selftest` render followed by a real interactive launch that confirms the process survives, owns a top-level window, and screenshots the desktop. `release.yml` runs the same build+smoke before attaching the exe to a release.
+- Manually verified on a real Windows machine (CI only covers `windows-latest`'s Windows Server image).
 
 ### Fixed
 - Desktop app: assets are now located via `sys._MEIPASS` when running as a frozen build, so a packaged `.exe` finds `assets/` instead of looking beside a path that doesn't exist at run time. No effect when running from source or from the `.deb`.
+
+### Known limitations
+- The volume knob does nothing on Windows — it drives `wpctl`/`pactl`, neither of which exists there, so it turns without changing system volume.
+- The `.exe` is unsigned. Expect a SmartScreen warning on first launch, and possible antivirus false positives (common for unsigned PyInstaller output).
 
 ## [1.2.0] - 2026-07-30
 
