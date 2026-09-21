@@ -154,6 +154,50 @@ class FaceplateView(
             if (scanForHeight != screen.height()) buildScanLines(screen)
             canvas.drawLines(scanLines, scanPaint)
         }
+
+        if (debugHitboxes) drawHitboxes(canvas)
+    }
+
+    /** Debug builds only: strokes every hitbox so the measurements can be checked. */
+    var debugHitboxes: Boolean = BuildConfig.DEBUG
+        set(value) { field = value; invalidate() }
+
+    private val debugPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+        color = 0xFFFF3B30.toInt()
+    }
+    private val debugLabel = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xFFFFD60A.toInt()
+        textSize = 22f
+    }
+
+    private fun drawHitboxes(canvas: Canvas) {
+        val r = faceplateRect()
+        fun fx(v: Float) = r.left + v * r.width()
+        fun fy(v: Float) = r.top + v * r.height()
+
+        for ((control, b) in Geometry.boxes) {
+            canvas.drawRect(
+                fx(b.cx - b.hw), fy(b.cy - b.hh),
+                fx(b.cx + b.hw), fy(b.cy + b.hh), debugPaint
+            )
+            canvas.drawText(control.name, fx(b.cx - b.hw), fy(b.cy - b.hh) - 4f, debugLabel)
+        }
+        for (i in Geometry.PRESETS_X.indices) {
+            canvas.drawRect(
+                fx(Geometry.PRESETS_X[i] - Geometry.PRESET_HW),
+                fy(Geometry.PRESETS_Y - Geometry.PRESET_HH),
+                fx(Geometry.PRESETS_X[i] + Geometry.PRESET_HW),
+                fy(Geometry.PRESETS_Y + Geometry.PRESET_HH), debugPaint
+            )
+        }
+        canvas.drawCircle(fx(Geometry.LKNOB.first), fy(Geometry.LKNOB.second),
+            Geometry.LKNOB_HIT * r.width(), debugPaint)
+        canvas.drawCircle(fx(Geometry.RKNOB.first), fy(Geometry.RKNOB.second),
+            Geometry.RKNOB_HIT * r.width(), debugPaint)
+        canvas.drawCircle(fx(Geometry.RKNOB.first), fy(Geometry.RKNOB.second),
+            Geometry.RKNOB_CENTER_HIT * r.width(), debugPaint)
     }
 
     /** One drawLines call beats ~64 drawLine calls per frame. */

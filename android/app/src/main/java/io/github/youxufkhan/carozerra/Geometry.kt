@@ -60,7 +60,7 @@ object Geometry {
         Control.EQ to Box(0.182f, 0.810f, 0.042f, 0.035f),       // 13
         Control.AUDIO to Box(0.7525f, 0.418f, 0.0308f, 0.0497f), // 6
         Control.FUNCTION to Box(0.7525f, 0.6082f, 0.0308f, 0.0497f), // 5
-        Control.OPEN to Box(0.857f, 0.207f, 0.015f, 0.033f),     // 8
+        Control.OPEN to Box(0.893f, 0.207f, 0.015f, 0.033f),     // 8
         Control.BAND to Box(0.9480f, 0.2797f, 0.0390f, 0.0675f), // 9
         Control.ENT to Box(0.948f, 0.725f, 0.042f, 0.055f),      // 10
         Control.EQEX to Box(0.820f, 0.807f, 0.036f, 0.030f),     // 11
