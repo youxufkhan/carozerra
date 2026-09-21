@@ -152,6 +152,15 @@ any combination composites without collision. Zone rectangles are fractions of
 the frame in the same style as `G`, and are measured against the reference
 photographs.
 
+**Glyphs.** The clock, the indicators and the text line all need text rendered
+at OEL scale, which nothing in this codebase does today — `carozerra.py`'s help
+overlay uses Qt's default face, nothing like the dot-matrix in the photographs.
+The approach is a system monospace typeface drawn with antialiasing **off** and
+tinted OEL cyan, scaled so glyphs land on whole source pixels. Hand-authoring a
+5×7 bitmap font for ~40 glyphs is the obvious-looking answer and is not worth
+it: switching off antialiasing at this scale already produces hard pixel edges,
+and the glow and scanline passes run over the result either way.
+
 ③ DISPLAY cycles the overlay set — the manual's "select different displays":
 
 1. **Clean** — animation only (default)
@@ -246,6 +255,29 @@ rectangle over the faceplate; the measurement is correct when a screenshot
 shows each box centred on its button. This overlay is the acceptance check for
 the geometry task, not a shipped feature.
 
+### Hit-test precedence
+
+`carozerra.py:_hit` is a linear if-chain returning on first match, which is
+safe at 5 regions and is not at 15. Several new boxes land next to existing
+ones — ⑩ ENT sits close to `rknob_hit`, ⑬ EQ and ⑭ SOURCE share the bottom-left
+corner, ⑧ OPEN and ⑨ BAND share the top-right. A screenshot of centred boxes
+passes even when two of them overlap and the wrong one wins.
+
+So the order is fixed and explicit: **innermost and smallest first**.
+`rknob_center_hit` is tested before `rknob`; the small edge buttons are tested
+before either knob; the preset row last. And `GeometryTest` asserts not only
+that every control's centre resolves to its own action but that **no two hitbox
+rectangles intersect** — a pure function over the `G` table, so it catches the
+entire class of packing errors for the cost of one test.
+
+### Gesture discrimination
+
+② VOLUME serves both rotate and press from a single hitbox, so the two need
+separating or every volume adjustment also triggers blackout. A **tap** is a
+release within 300 ms having travelled under ~2% of the faceplate width;
+anything else is a rotate. The desktop app never needed this rule because its
+knob had no press action (`carozerra.py:420-424` sets `_drag_knob` immediately).
+
 Back-porting these ten entries into `carozerra.py`'s `G`, so Linux, Windows and
 Android share one geometry table rather than two that can drift, is agreed but
 deliberately deferred — it does not block the Android work, and porting numbers
@@ -302,7 +334,9 @@ Level source, resolved at startup:
 1. **Capture** — `Visualizer(0)` with `RECORD_AUDIO`, 128-sample waveform at
    ~20 Hz, RMS about the 128 midpoint. Left and right columns are driven from
    the two channels where the capture provides them, and mirrored where it does
-   not
+   not. Whether `MODIFY_AUDIO_SETTINGS` is also required alongside
+   `RECORD_AUDIO` is unconfirmed — a one-line manifest addition, settled in
+   Phase 5 against a running build rather than guessed now
 2. **Unavailable** — if the constructor throws, the permission is denied, or
    samples stay flat (max deviation < 2) for 3 consecutive seconds while
    `isMusicActive()` reports true, the `Visualizer` is released and **the meter
@@ -359,7 +393,7 @@ Copying a filtered set rather than pointing at `../../assets` wholesale keeps
 | Test | Kind | Asserts |
 |---|---|---|
 | `LkdDecoderTest` | JVM unit | a real `.lkd` yields 60 frames of 256×64; a known pixel matches `decode.py`'s output; bad magic throws |
-| `GeometryTest` | JVM unit | every control's centre resolves to its action; nav sectors resolve by angle; a point on bare faceplate resolves to nothing |
+| `GeometryTest` | JVM unit | every control's centre resolves to its action; **no two hitbox rectangles intersect**; nav sectors resolve by angle; a point on bare faceplate resolves to nothing |
 | `SelftestTest` | instrumented | launch, wait for first frame, screenshot, assert > 32 distinct sampled colours |
 
 `SelftestTest` is the direct parallel of `carozerra.py --selftest` and exists
