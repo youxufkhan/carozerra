@@ -36,3 +36,16 @@ dependencies {
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:rules:1.6.1")
 }
+
+val syncSharedAssets by tasks.registering(Sync::class) {
+    // Only the two things the app needs — assets/readme/ stays out of the APK.
+    from(rootProject.file("../assets/clips")) { into("clips") }
+    from(rootProject.file("../assets/pioneer.png"))
+    into(layout.buildDirectory.dir("generated/sharedAssets"))
+}
+
+android.sourceSets.getByName("main").assets.srcDir(
+    layout.buildDirectory.dir("generated/sharedAssets")
+)
+
+tasks.named("preBuild") { dependsOn(syncSharedAssets) }
