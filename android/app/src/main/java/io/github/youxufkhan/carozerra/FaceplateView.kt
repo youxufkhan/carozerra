@@ -7,6 +7,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
+import android.graphics.Typeface
 import android.os.Handler
 import android.os.Looper
 import android.view.View
@@ -208,6 +209,16 @@ class FaceplateView(
 
     val overlays = OelOverlays()
 
+    private var flashText: String? = null
+    private var flashUntil = 0L
+
+    /** A short message centred on the OEL — used when a control has nothing honest to do. */
+    fun flash(message: String) {
+        flashText = message
+        flashUntil = android.os.SystemClock.elapsedRealtime() + 1500L
+        invalidate()
+    }
+
     private val bloom = Paint(Paint.FILTER_BITMAP_FLAG).apply {
         blendMode = android.graphics.BlendMode.SCREEN
     }
@@ -215,10 +226,14 @@ class FaceplateView(
     private var scanLines = FloatArray(0)
     private var scanForHeight = -1f
 
+    var levelProvider: (() -> Float)? = null
+    var availableProvider: (() -> Boolean)? = null
+
     private val ticker = Handler(Looper.getMainLooper())
     private val tick = object : Runnable {
         override fun run() {
             clip?.let { frame = (frame + 1) % it.frames.size }
+            levelProvider?.let { overlays.meterLevel = it() }
             invalidate()
             ticker.postDelayed(this, (1000L / fps))
         }
@@ -287,12 +302,27 @@ class FaceplateView(
         overlays.draw(
             canvas, screen, clipName,
             ClipCatalog.categoryOf(clipName), c.frames.size,
-            glowIntensity == 2, scanlines,
+            glowIntensity == 2, scanlines, availableProvider?.invoke() ?: false,
         )
 
         if (scanlines) {
             if (scanForHeight != screen.height()) buildScanLines(screen)
             canvas.drawLines(scanLines, scanPaint)
+        }
+
+        flashText?.let {
+            if (android.os.SystemClock.elapsedRealtime() > flashUntil) {
+                flashText = null
+            } else {
+                val s = screenRect()
+                val p = Paint().apply {
+                    isAntiAlias = false; color = OEL_CYAN
+                    textSize = s.height() * 0.28f
+                    textAlign = Paint.Align.CENTER
+                    typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+                }
+                canvas.drawText(it, s.centerX(), s.centerY(), p)
+            }
         }
 
         if (debugHitboxes) drawHitboxes(canvas)

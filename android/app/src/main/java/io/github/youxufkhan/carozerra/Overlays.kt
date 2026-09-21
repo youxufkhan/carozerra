@@ -34,6 +34,8 @@ class OelOverlays {
     var displayMode: Int = 0            // 0 clean, 1 clock, 2 clock + metadata
         set(value) { field = ((value % 3) + 3) % 3 }
     var textLine: Boolean = false
+    var meters: Boolean = false
+    var meterLevel: Float = 0f
 
     private val text = Paint().apply {
         isAntiAlias = false
@@ -41,16 +43,51 @@ class OelOverlays {
         typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
     }
 
+    private val meterBg = Paint().apply { color = 0xFF000000.toInt() }
+    private val meterOn = Paint().apply { isAntiAlias = false; color = OEL_CYAN }
+    private val meterOff = Paint().apply { isAntiAlias = false; color = 0xFF0A3540.toInt() }
+
+    private var peakHold = 0f
+
     private var scrollOffset = 0f
 
     fun draw(
         canvas: Canvas, screen: RectF, clipName: String, category: String, frames: Int,
-        showLoud: Boolean, showEqEx: Boolean,
+        showLoud: Boolean, showEqEx: Boolean, captureAvailable: Boolean,
     ) {
         if (displayMode >= 1) drawClock(canvas, screen)
         if (displayMode >= 2) drawMeta(canvas, screen, clipName, category)
+        if (meters && captureAvailable) drawMeters(canvas, screen)
         if (showEqEx || showLoud) drawIndicators(canvas, screen, showLoud, showEqEx)
         if (textLine) drawTextLine(canvas, screen, clipName, category, frames)
+    }
+
+    private fun drawMeters(canvas: Canvas, screen: RectF) {
+        val r = Zones.inScreen(Zones.METERS, screen)
+        canvas.drawRect(r, meterBg)
+
+        peakHold = if (meterLevel > peakHold) meterLevel else (peakHold - 0.012f).coerceAtLeast(0f)
+
+        val segments = 10
+        val colGap = r.width() * 0.12f
+        val colW = (r.width() - colGap) / 2f
+        val segH = r.height() / segments
+        for (col in 0..1) {
+            val x0 = r.left + col * (colW + colGap)
+            for (s in 0 until segments) {
+                val lit = (segments - s) <= Math.round(meterLevel * segments)
+                val top = r.top + s * segH
+                canvas.drawRect(
+                    x0, top + segH * 0.15f, x0 + colW, top + segH * 0.85f,
+                    if (lit) meterOn else meterOff
+                )
+            }
+            val peakSeg = segments - Math.round(peakHold * segments)
+            if (peakSeg in 0 until segments) {
+                val top = r.top + peakSeg * segH
+                canvas.drawRect(x0, top, x0 + colW, top + segH * 0.18f, meterOn)
+            }
+        }
     }
 
     private fun drawClock(canvas: Canvas, screen: RectF) {
