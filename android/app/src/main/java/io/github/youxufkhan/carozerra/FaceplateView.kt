@@ -94,6 +94,38 @@ class FaceplateView(
     var onKnobTap: (() -> Unit)? = null
     var onKnobLongPress: (() -> Unit)? = null
 
+    var volumePercent: Int = 50
+        set(value) { field = value.coerceIn(0, 100); invalidate() }
+
+    private val knob: Bitmap = run {
+        val rx = (Geometry.LKNOB_DISC_X * Geometry.BASE_W).toInt()
+        val ry = (Geometry.LKNOB_DISC_Y * Geometry.BASE_H).toInt()
+        val cx = (Geometry.LKNOB.first * Geometry.BASE_W).toInt()
+        val cy = (Geometry.LKNOB.second * Geometry.BASE_H).toInt()
+        Bitmap.createBitmap(face, cx - rx, cy - ry, 2 * rx, 2 * ry)
+    }
+    private val knobClip = android.graphics.Path()
+
+    private fun drawKnob(canvas: Canvas) {
+        val r = faceplateRect()
+        val cx = r.left + Geometry.LKNOB.first * r.width()
+        val cy = r.top + Geometry.LKNOB.second * r.height()
+        val radius = Geometry.LKNOB_DISC_X * r.width()
+        // -140deg at 0%, +140deg at 100%: the same sweep as the desktop app.
+        val angle = -140f + volumePercent / 100f * 280f
+
+        canvas.save()
+        canvas.translate(cx, cy)
+        // Clip first, rotate second: the circular mask must not rotate with the art.
+        knobClip.reset()
+        knobClip.addCircle(0f, 0f, radius, android.graphics.Path.Direction.CW)
+        canvas.clipPath(knobClip)
+        canvas.rotate(angle)
+        src.set(0, 0, knob.width, knob.height)
+        canvas.drawBitmap(knob, src, RectF(-radius, -radius, radius, radius), facePaint)
+        canvas.restore()
+    }
+
     private var downX = 0f
     private var downY = 0f
     private var downAt = 0L
@@ -232,6 +264,7 @@ class FaceplateView(
         val r = faceplateRect()
         src.set(0, 0, face.width, face.height)
         canvas.drawBitmap(face, src, r, facePaint)
+        drawKnob(canvas)
 
         val c = clip ?: return
         val screen = screenRect()
