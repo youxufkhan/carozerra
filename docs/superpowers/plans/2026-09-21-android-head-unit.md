@@ -927,11 +927,13 @@ First visible result: the faceplate fills the screen with a clip playing on the 
 **Interfaces:**
 - Consumes: `ClipRepository.render`, `ClipCatalog.all`, `Geometry.SCREEN`, `Geometry.BASE_W/BASE_H`
 - Produces:
-  - `class FaceplateView(context: Context) : View(context)` with
-    - `var clipName: String` — setting it loads and restarts that clip
+  - `class FaceplateView(context: Context, private val repo: ClipRepository) : View(context)` with
+    - `var clipName: String` — setting it decodes that clip on a background thread and restarts it
     - `var fps: Int` — clamped to 4..30
-    - `fun faceplateRect(): RectF` and `fun toBase(x: Float, y: Float): FloatArray`
-  - `class MainActivity : Activity()`
+    - `fun faceplateRect(): RectF`, `fun screenRect(): RectF`, `fun toBase(x: Float, y: Float): FloatArray`
+  - `class MainActivity : Activity()` — owns the single `ClipRepository` and passes it to both the view and (in Task 12) the gallery
+
+**One repository for the whole app.** `MainActivity` constructs it and hands it to every consumer. Two instances would mean two LRUs and two thumbnail caches, so a clip the gallery just decoded would be decoded again the moment the view played it.
 
 - [ ] **Step 1: Write the faceplate view**
 
@@ -951,9 +953,11 @@ import android.os.Handler
 import android.os.Looper
 import android.view.View
 
-class FaceplateView(context: Context) : View(context) {
+class FaceplateView(
+    context: Context,
+    private val repo: ClipRepository,
+) : View(context) {
 
-    private val repo = ClipRepository(context.assets)
     private val face: Bitmap = context.assets.open("pioneer.png").use {
         // The source PNG is 1600x893 with a transparent margin; the visible
         // faceplate is the 1559x503 box at (22,204). Cropping keeps the app's
@@ -967,16 +971,38 @@ class FaceplateView(context: Context) : View(context) {
     private val frameRect = RectF()
     private val src = Rect()
 
-    private var clip: RenderClip = repo.render(ClipCatalog.all.first())
+    private var clip: RenderClip? = null
     private var frame = 0
 
     var clipName: String = ClipCatalog.all.first()
         set(value) {
             field = value
-            clip = repo.render(value)
-            frame = 0
-            invalidate()
+            loadClip(value)
         }
+
+    /**
+     * Decoding is a gunzip, a tar walk, 60 BMP slices and 60 scaled bitmaps —
+     * around 4.3 MB. On a weak head-unit SoC that is a visible stall if it runs
+     * on the UI thread, so it never does. The faceplate paints immediately and
+     * the OEL fills in when the clip lands.
+     */
+    private fun loadClip(name: String) {
+        Thread {
+            val loaded = repo.render(name)
+            post {
+                if (clipName == name) {
+                    clip = loaded
+                    frame = 0
+                    invalidate()
+                }
+            }
+        }.start()
+    }
+
+    init { loadClip(clipName) }
+
+    /** False until the first background decode lands. The selftest waits on it. */
+    val clipLoaded: Boolean get() = clip != null
 
     var fps: Int = 16
         set(value) { field = value.coerceIn(4, 30) }
@@ -984,7 +1010,7 @@ class FaceplateView(context: Context) : View(context) {
     private val ticker = Handler(Looper.getMainLooper())
     private val tick = object : Runnable {
         override fun run() {
-            frame = (frame + 1) % clip.frames.size
+            clip?.let { frame = (frame + 1) % it.frames.size }
             invalidate()
             ticker.postDelayed(this, (1000L / fps))
         }
@@ -1033,7 +1059,8 @@ class FaceplateView(context: Context) : View(context) {
         src.set(0, 0, face.width, face.height)
         canvas.drawBitmap(face, src, r, facePaint)
 
-        val bmp = clip.frames[frame]
+        val c = clip ?: return          // still decoding; the faceplate is already up
+        val bmp = c.frames[frame]
         src.set(0, 0, bmp.width, bmp.height)
         canvas.drawBitmap(bmp, src, screenRect(), crisp)
     }
@@ -1056,7 +1083,10 @@ import androidx.core.view.WindowInsetsControllerCompat
 
 class MainActivity : Activity() {
 
+    private lateinit var repo: ClipRepository
     private lateinit var view: FaceplateView
+
+    internal val faceplate: FaceplateView get() = view
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -1068,7 +1098,10 @@ class MainActivity : Activity() {
             systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
-        view = FaceplateView(this)
+        // One repository for the whole app: the gallery and the view share its
+        // LRU and its thumbnail cache.
+        repo = ClipRepository(assets)
+        view = FaceplateView(this, repo)
         setContentView(view)
     }
 }
@@ -1099,25 +1132,48 @@ class SelftestTest {
     @Test
     fun activityDrawsTheFaceplateAndAClip() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            var distinct = 0
+
+            // The first clip decodes on a background thread, so the faceplate is
+            // up before the OEL is. Sampling too early would pass on the
+            // faceplate alone and prove nothing about decoding.
+            var loaded = false
+            val deadline = System.currentTimeMillis() + 15_000
+            while (!loaded && System.currentTimeMillis() < deadline) {
+                scenario.onActivity { loaded = it.faceplate.clipLoaded }
+                if (!loaded) Thread.sleep(200)
+            }
+            assertTrue("no clip decoded within 15s", loaded)
+
+            var distinctOnScreen = 0
+            var distinctInOel = 0
             scenario.onActivity { activity ->
                 val root = activity.window.decorView
                 val shot = Bitmap.createBitmap(
                     root.width, root.height, Bitmap.Config.ARGB_8888
                 )
                 root.draw(android.graphics.Canvas(shot))
-                val seen = HashSet<Int>()
-                var y = 0
-                while (y < shot.height) {
-                    var x = 0
-                    while (x < shot.width) {
-                        seen.add(shot.getPixel(x, y)); x += 7
+
+                fun countIn(l: Int, t: Int, r: Int, b: Int): Int {
+                    val seen = HashSet<Int>()
+                    var y = t
+                    while (y < b) {
+                        var x = l
+                        while (x < r) { seen.add(shot.getPixel(x, y)); x += 7 }
+                        y += 7
                     }
-                    y += 7
+                    return seen.size
                 }
-                distinct = seen.size
+
+                distinctOnScreen = countIn(0, 0, shot.width, shot.height)
+                val oel = activity.faceplate.screenRect()
+                distinctInOel = countIn(
+                    oel.left.toInt() + 2, oel.top.toInt() + 2,
+                    oel.right.toInt() - 2, oel.bottom.toInt() - 2
+                )
             }
-            assertTrue("only $distinct distinct colours — looks blank", distinct >= 32)
+            assertTrue("whole window: only $distinctOnScreen colours", distinctOnScreen >= 32)
+            // The OEL rect alone must vary — that is the clip, not the faceplate art.
+            assertTrue("OEL rect: only $distinctInOel colours", distinctInOel >= 8)
         }
     }
 }
@@ -1181,13 +1237,14 @@ Add to `FaceplateView`:
 Replace `onDraw`'s clip-drawing section with:
 
 ```kotlin
+        val c = clip ?: return
         val screen = screenRect()
-        val bmp = clip.frames[frame]
+        val bmp = c.frames[frame]
         src.set(0, 0, bmp.width, bmp.height)
         canvas.drawBitmap(bmp, src, screen, crisp)
 
         if (glow && glowIntensity > 0) {
-            val blur = clip.blur[frame]
+            val blur = c.blur[frame]
             src.set(0, 0, blur.width, blur.height)
             val alphas = if (glowIntensity == 1) intArrayOf(120) else intArrayOf(217, 128)
             for (a in alphas) {
@@ -1815,7 +1872,7 @@ In `FaceplateView`, add `val overlays = OelOverlays()` and call it after the cli
 ```kotlin
         overlays.draw(
             canvas, screen, clipName,
-            ClipCatalog.categoryOf(clipName), clip.frames.size
+            ClipCatalog.categoryOf(clipName), c.frames.size
         )
 ```
 
@@ -2234,7 +2291,7 @@ In `MainActivity.onCreate`, replace `setContentView(view)` with:
 ```kotlin
         val root = android.widget.FrameLayout(this)
         root.addView(view)
-        gallery = GalleryOverlay(this, ClipRepository(assets)) { name ->
+        gallery = GalleryOverlay(this, repo) { name ->   // the same repository the view uses
             view.clipName = name
         }
         root.addView(gallery)
