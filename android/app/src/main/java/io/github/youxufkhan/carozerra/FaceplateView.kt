@@ -206,6 +206,8 @@ class FaceplateView(
     var scanlines: Boolean = true
         set(value) { field = value; invalidate() }
 
+    val overlays = OelOverlays()
+
     private val bloom = Paint(Paint.FILTER_BITMAP_FLAG).apply {
         blendMode = android.graphics.BlendMode.SCREEN
     }
@@ -281,6 +283,12 @@ class FaceplateView(
                 canvas.drawBitmap(blur, src, screen, bloom)
             }
         }
+
+        overlays.draw(
+            canvas, screen, clipName,
+            ClipCatalog.categoryOf(clipName), c.frames.size,
+            glowIntensity == 2, scanlines,
+        )
 
         if (scanlines) {
             if (scanForHeight != screen.height()) buildScanLines(screen)

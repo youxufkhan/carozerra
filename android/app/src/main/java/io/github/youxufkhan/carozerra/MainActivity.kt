@@ -48,8 +48,19 @@ class MainActivity : Activity() {
                 Control.PRESET -> { view.selectPreset(hit.data); true }
                 Control.SOURCE -> { view.cycleCategory(); true }
                 Control.FUNCTION -> { view.glow = !view.glow; true }
-                Control.EQ -> { view.glowIntensity = (view.glowIntensity + 1) % 3; true }
-                Control.EQEX -> { view.scanlines = !view.scanlines; true }
+                Control.DISPLAY -> { view.overlays.displayMode += 1; view.invalidate(); true }
+                Control.TEXT -> {
+                    view.overlays.textLine = !view.overlays.textLine
+                    view.invalidate(); true
+                }
+                Control.EQ -> {
+                    view.glowIntensity = (view.glowIntensity + 1) % 3
+                    true
+                }
+                Control.EQEX -> {
+                    view.scanlines = !view.scanlines
+                    true
+                }
                 Control.TA -> { audio.toggleMute(); view.volumePercent = audio.volumePercent; true }
                 Control.NAV_CENTER -> { audio.playPause(); true }
                 Control.NAV -> {
