@@ -18,6 +18,8 @@ This document outlines the planned features, requested enhancements, and future 
     *   *Details:* Expand Linux packaging beyond just the current Debian (`.deb`) releases. Look into supporting Arch, RPM-based distros, or universal formats like Flatpak/AppImage.
 *   **Reverse-Engineer the `.lka` Container Format**
     *   *Details:* Community-contributed discs also included `ent_disp.lka` and `Default_all.LKA` — neither matches the `zLKD` magic bytes our decoder expects, and their format is currently unknown. Needs its own investigation before any content inside them can be extracted.
+*   **Back-Port the Android Hitboxes to the Desktop App**
+    *   *Details:* The Android app measures hitboxes for ten controls the desktop app never wired — `TA`, `DISPLAY`, `TEXT`, `AUDIO`, the nav knob's centre press, `OPEN`, `ENTERTAINMENT`, `EQ-EX`, `EQ` and `SOURCE` — giving that faceplate 17 live controls versus 5 in `carozerra.py`, each mapped to the function the DEH-P7600MP manual prints against it. Fold those entries back into `carozerra.py`'s `G` dict and wire the desktop equivalents, so Linux, Windows and Android share one geometry table instead of two that can drift. Deliberately deferred: it doesn't block the Android work, and doing it after the Android measurements are verified against a debug overlay means porting numbers that are already known good.
 
 ## 🔴 Long-Term / New Ecosystems
 
