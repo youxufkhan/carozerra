@@ -62,6 +62,105 @@ class FaceplateView(
     /** False until the first background decode lands. The selftest waits on it. */
     val clipLoaded: Boolean get() = clip != null
 
+    var categoryIndex: Int = 0
+        private set
+
+    private val categoryClips: List<String>
+        get() = ClipCatalog.categories[categoryIndex].clips
+
+    private var indexInCategory = 0
+
+    fun nextClip(delta: Int) {
+        val n = categoryClips.size
+        indexInCategory = ((indexInCategory + delta) % n + n) % n
+        clipName = categoryClips[indexInCategory]
+    }
+
+    fun selectPreset(i: Int) {
+        if (i in categoryClips.indices) {
+            indexInCategory = i
+            clipName = categoryClips[i]
+        }
+    }
+
+    fun cycleCategory() {
+        categoryIndex = (categoryIndex + 1) % ClipCatalog.categories.size
+        indexInCategory = 0
+        clipName = categoryClips[0]
+    }
+
+    var onControl: ((Hit) -> Boolean)? = null
+    var onVolumeDrag: ((Float) -> Unit)? = null
+    var onKnobTap: (() -> Unit)? = null
+    var onKnobLongPress: (() -> Unit)? = null
+
+    private var downX = 0f
+    private var downY = 0f
+    private var downAt = 0L
+    private var draggingKnob = false
+    private var knobAngle = 0f
+    private var swipeCandidate = false
+
+    private val tapSlopPx get() = 0.02f * faceplateRect().width()
+
+    override fun onTouchEvent(event: android.view.MotionEvent): Boolean {
+        val (bx, by) = toBase(event.x, event.y).let { Pair(it[0], it[1]) }
+        when (event.actionMasked) {
+            android.view.MotionEvent.ACTION_DOWN -> {
+                downX = event.x; downY = event.y; downAt = event.eventTime
+                val hit = Geometry.hit(bx, by)
+                draggingKnob = hit?.control == Control.VOLUME
+                swipeCandidate = hit == null
+                if (draggingKnob) knobAngle = angleToKnob(bx, by)
+                return true
+            }
+            android.view.MotionEvent.ACTION_MOVE -> {
+                if (draggingKnob) {
+                    val a = angleToKnob(bx, by)
+                    var d = a - knobAngle
+                    if (d > 180f) d -= 360f
+                    if (d < -180f) d += 360f
+                    if (kotlin.math.abs(d) > 0.5f) {
+                        knobAngle = a
+                        onVolumeDrag?.invoke(d / 280f * 100f)
+                    }
+                }
+                return true
+            }
+            android.view.MotionEvent.ACTION_UP -> {
+                val travelled = kotlin.math.hypot(event.x - downX, event.y - downY)
+                val held = event.eventTime - downAt
+
+                if (draggingKnob) {
+                    draggingKnob = false
+                    // A tap is a short, still press. Without this every volume
+                    // adjustment would also fire the knob's press action.
+                    if (travelled < tapSlopPx) {
+                        if (held >= 600L) onKnobLongPress?.invoke() else onKnobTap?.invoke()
+                    }
+                    return true
+                }
+                if (swipeCandidate && travelled > 4 * tapSlopPx &&
+                    kotlin.math.abs(event.x - downX) > kotlin.math.abs(event.y - downY)
+                ) {
+                    nextClip(if (event.x < downX) 1 else -1)
+                    return true
+                }
+                Geometry.hit(bx, by)?.let { onControl?.invoke(it) }
+                return true
+            }
+        }
+        return super.onTouchEvent(event)
+    }
+
+    private fun angleToKnob(bx: Float, by: Float): Float {
+        val lx = Geometry.LKNOB.first * Geometry.BASE_W
+        val ly = Geometry.LKNOB.second * Geometry.BASE_H
+        return Math.toDegrees(
+            kotlin.math.atan2((by - ly).toDouble(), (bx - lx).toDouble())
+        ).toFloat()
+    }
+
     var fps: Int = 16
         set(value) { field = value.coerceIn(4, 30) }
 

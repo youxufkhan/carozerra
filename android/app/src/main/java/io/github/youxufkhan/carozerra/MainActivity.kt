@@ -28,6 +28,23 @@ class MainActivity : Activity() {
         // LRU and its thumbnail cache.
         repo = ClipRepository(assets)
         view = FaceplateView(this, repo)
+        view.onControl = { hit ->
+            when (hit.control) {
+                Control.PRESET -> { view.selectPreset(hit.data); true }
+                Control.SOURCE -> { view.cycleCategory(); true }
+                Control.FUNCTION -> { view.glow = !view.glow; true }
+                Control.EQ -> { view.glowIntensity = (view.glowIntensity + 1) % 3; true }
+                Control.EQEX -> { view.scanlines = !view.scanlines; true }
+                Control.NAV -> {
+                    when (hit.data) {
+                        Geometry.NAV_UP -> view.fps += 2
+                        Geometry.NAV_DOWN -> view.fps -= 2
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
         setContentView(view)
     }
 }
