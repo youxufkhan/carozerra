@@ -65,6 +65,23 @@ class FaceplateView(
     var fps: Int = 16
         set(value) { field = value.coerceIn(4, 30) }
 
+    var glow: Boolean = true
+        set(value) { field = value; invalidate() }
+
+    /** 0 = off, 1 = soft, 2 = full. Cycled by the EQ button. */
+    var glowIntensity: Int = 2
+        set(value) { field = value.coerceIn(0, 2); invalidate() }
+
+    var scanlines: Boolean = true
+        set(value) { field = value; invalidate() }
+
+    private val bloom = Paint(Paint.FILTER_BITMAP_FLAG).apply {
+        blendMode = android.graphics.BlendMode.SCREEN
+    }
+    private val scanPaint = Paint().apply { color = 0x46000000 }
+    private var scanLines = FloatArray(0)
+    private var scanForHeight = -1f
+
     private val ticker = Handler(Looper.getMainLooper())
     private val tick = object : Runnable {
         override fun run() {
@@ -117,9 +134,42 @@ class FaceplateView(
         src.set(0, 0, face.width, face.height)
         canvas.drawBitmap(face, src, r, facePaint)
 
-        val c = clip ?: return          // still decoding; the faceplate is already up
+        val c = clip ?: return
+        val screen = screenRect()
         val bmp = c.frames[frame]
         src.set(0, 0, bmp.width, bmp.height)
-        canvas.drawBitmap(bmp, src, screenRect(), crisp)
+        canvas.drawBitmap(bmp, src, screen, crisp)
+
+        if (glow && glowIntensity > 0) {
+            val blur = c.blur[frame]
+            src.set(0, 0, blur.width, blur.height)
+            val alphas = if (glowIntensity == 1) intArrayOf(120) else intArrayOf(217, 128)
+            for (a in alphas) {
+                bloom.alpha = a
+                canvas.drawBitmap(blur, src, screen, bloom)
+            }
+        }
+
+        if (scanlines) {
+            if (scanForHeight != screen.height()) buildScanLines(screen)
+            canvas.drawLines(scanLines, scanPaint)
+        }
+    }
+
+    /** One drawLines call beats ~64 drawLine calls per frame. */
+    private fun buildScanLines(screen: RectF) {
+        val step = maxOf(2f, screen.height() / 64f)
+        val n = (screen.height() / step).toInt()
+        val pts = FloatArray(n * 4)
+        var y = screen.top
+        for (i in 0 until n) {
+            pts[i * 4] = screen.left
+            pts[i * 4 + 1] = y
+            pts[i * 4 + 2] = screen.right
+            pts[i * 4 + 3] = y
+            y += step
+        }
+        scanLines = pts
+        scanForHeight = screen.height()
     }
 }
