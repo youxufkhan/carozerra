@@ -11,6 +11,7 @@ class MainActivity : Activity() {
 
     private lateinit var repo: ClipRepository
     private lateinit var view: FaceplateView
+    private lateinit var gallery: GalleryOverlay
     private lateinit var audio: AudioBridge
     private lateinit var level: LevelSource
     private val poll = android.os.Handler(android.os.Looper.getMainLooper())
@@ -85,10 +86,17 @@ class MainActivity : Activity() {
                     }
                     true
                 }
+                Control.ENT -> { gallery.show(); true }
                 else -> false
             }
         }
-        setContentView(view)
+        val root = android.widget.FrameLayout(this)
+        root.addView(view)
+        gallery = GalleryOverlay(this, repo) { name ->   // the same repository the view uses
+            view.clipName = name
+        }
+        root.addView(gallery)
+        setContentView(root)
     }
 
     override fun onResume() {
