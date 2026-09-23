@@ -94,6 +94,10 @@ class FaceplateView(
     var onVolumeDrag: ((Float) -> Unit)? = null
     var onKnobTap: (() -> Unit)? = null
     var onKnobLongPress: (() -> Unit)? = null
+    var onBandLongPress: (() -> Unit)? = null
+
+    var blackout: Boolean = false
+        set(value) { field = value; invalidate() }
 
     var volumePercent: Int = 50
         set(value) { field = value.coerceIn(0, 100); invalidate() }
@@ -136,7 +140,19 @@ class FaceplateView(
 
     private val tapSlopPx get() = 0.02f * faceplateRect().width()
 
+    private var wokeThisGesture = false
+
     override fun onTouchEvent(event: android.view.MotionEvent): Boolean {
+        if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+            wokeThisGesture = false
+        }
+        if (blackout && event.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+            wokeThisGesture = true
+            onKnobTap?.invoke()
+            return true
+        }
+        if (wokeThisGesture) return true
+
         val (bx, by) = toBase(event.x, event.y).let { Pair(it[0], it[1]) }
         when (event.actionMasked) {
             android.view.MotionEvent.ACTION_DOWN -> {
@@ -179,7 +195,12 @@ class FaceplateView(
                     nextClip(if (event.x < downX) 1 else -1)
                     return true
                 }
-                Geometry.hit(bx, by)?.let { onControl?.invoke(it) }
+                val hit = Geometry.hit(bx, by)
+                if (hit?.control == Control.BAND && held >= 600L) {
+                    onBandLongPress?.invoke()
+                } else {
+                    hit?.let { onControl?.invoke(it) }
+                }
                 return true
             }
         }
@@ -278,6 +299,7 @@ class FaceplateView(
     }
 
     override fun onDraw(canvas: Canvas) {
+        if (blackout) { canvas.drawColor(0xFF000000.toInt()); return }
         val r = faceplateRect()
         src.set(0, 0, face.width, face.height)
         canvas.drawBitmap(face, src, r, facePaint)

@@ -12,6 +12,7 @@ class MainActivity : Activity() {
     private lateinit var repo: ClipRepository
     private lateinit var view: FaceplateView
     private lateinit var gallery: GalleryOverlay
+    private lateinit var card: CardOverlay
     private lateinit var audio: AudioBridge
     private lateinit var level: LevelSource
     private val poll = android.os.Handler(android.os.Looper.getMainLooper())
@@ -48,6 +49,11 @@ class MainActivity : Activity() {
             audio.setVolumePercent(audio.volumePercent + Math.round(delta))
             view.volumePercent = audio.volumePercent
         }
+        view.onKnobTap = {
+            if (view.blackout) wake() else blackoutOn()
+        }
+        view.onKnobLongPress = { blackoutOn() }
+        view.onBandLongPress = { finish() }
         view.onControl = { hit ->
             when (hit.control) {
                 Control.PRESET -> { view.selectPreset(hit.data); true }
@@ -87,6 +93,8 @@ class MainActivity : Activity() {
                     true
                 }
                 Control.ENT -> { gallery.show(); true }
+                Control.OPEN -> { card.show(); true }
+                Control.BAND -> { bandPressed(); true }
                 else -> false
             }
         }
@@ -96,7 +104,57 @@ class MainActivity : Activity() {
             view.clipName = name
         }
         root.addView(gallery)
+        card = CardOverlay(this)
+        root.addView(card)
         setContentView(root)
+
+        card.show()
+        android.os.Handler(android.os.Looper.getMainLooper())
+            .postDelayed({ card.hide() }, 5000L)
+    }
+
+    private fun blackoutOn() {
+        view.blackout = true
+        window.attributes = window.attributes.apply { screenBrightness = 0.01f }
+    }
+
+    private fun wake() {
+        view.blackout = false
+        window.attributes = window.attributes.apply { screenBrightness = -1f }
+    }
+
+    private fun bandPressed() {
+        when {
+            gallery.isShowing -> gallery.hide()
+            card.isShowing -> card.hide()
+            else -> view.flash("HOLD TO EXIT")
+        }
+    }
+
+    // The gallery and card overlays sit above FaceplateView and consume every
+    // touch themselves (a thumbnail pick, or dismiss-on-any-tap) before
+    // Geometry.hit ever runs — so BAND's own hitbox is otherwise unreachable
+    // while either is open. Intercept at the activity level instead of
+    // duplicating BAND-hitbox logic in both overlay classes.
+    private var absorbingBandGesture = false
+
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        if (ev.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+            absorbingBandGesture = false
+            if (gallery.isShowing || card.isShowing) {
+                val (bx, by) = view.toBase(ev.x, ev.y).let { it[0] to it[1] }
+                if (Geometry.hit(bx, by)?.control == Control.BAND) {
+                    absorbingBandGesture = true
+                }
+            }
+        }
+        if (absorbingBandGesture) {
+            if (ev.actionMasked == android.view.MotionEvent.ACTION_UP) {
+                bandPressed()
+            }
+            return true
+        }
+        return super.dispatchTouchEvent(ev)
     }
 
     override fun onResume() {

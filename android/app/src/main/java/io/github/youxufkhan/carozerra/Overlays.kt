@@ -1,9 +1,11 @@
 package io.github.youxufkhan.carozerra
 
+import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.view.View
 import java.util.Calendar
 
 /** Fractions of the 256x64 OEL frame. No two zones overlap. */
@@ -134,5 +136,102 @@ class OelOverlays {
             x += w
         }
         canvas.restore()
+    }
+}
+
+/** Every live control, in the manual's own numbering. */
+object ControlMap {
+    val ROWS: List<Pair<String, String>> = listOf(
+        "TA" to "mute",
+        "VOLUME turn" to "system volume",
+        "VOLUME press" to "blackout · any touch wakes",
+        "DISPLAY" to "clean / clock / clock + info",
+        "TEXT" to "scrolling text line",
+        "FUNCTION" to "glow on/off",
+        "AUDIO" to "level meters",
+        "NAV left / right" to "previous / next track",
+        "NAV up / down" to "animation speed",
+        "NAV press" to "play / pause",
+        "OPEN" to "this card",
+        "BAND" to "close · hold to exit",
+        "ENTERTAINMENT" to "clip gallery",
+        "EQ-EX" to "scanlines",
+        "1 - 6" to "clips 1-6 of the category",
+        "EQ" to "glow intensity",
+        "SOURCE" to "next category",
+        "swipe" to "previous / next clip",
+    )
+
+    val ABOUT: List<String> = listOf(
+        "CAROZERRA — Pioneer DEH-P7600MP visualizer",
+        "83 decoded .lkd animations · MIT licensed",
+        "github.com/youxufkhan/carozerra",
+    )
+}
+
+class CardOverlay(context: Context) : View(context) {
+
+    private val bg = Paint().apply { color = 0xEA080C10.toInt() }
+    private val edge = Paint().apply {
+        style = Paint.Style.STROKE; strokeWidth = 2f; color = 0x9612E0FF.toInt()
+    }
+    private val key = Paint().apply {
+        isAntiAlias = true; color = OEL_CYAN
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+    }
+    private val value = Paint().apply { isAntiAlias = true; color = 0xFFD6E2EA.toInt() }
+    private val dim = Paint().apply { isAntiAlias = true; color = 0xFF8CA2B0.toInt() }
+
+    val isShowing: Boolean get() = visibility == VISIBLE
+
+    init {
+        visibility = GONE
+        setOnClickListener { hide() }
+    }
+
+    fun show() { visibility = VISIBLE; invalidate() }
+    fun hide() { visibility = GONE }
+
+    override fun onDraw(canvas: Canvas) {
+        // Two columns: 18 rows will not fit legibly in one on a 600px-tall panel.
+        val pad = width * 0.04f
+        val box = RectF(pad, pad, width - pad, height - pad)
+        canvas.drawRoundRect(box, 16f, 16f, bg)
+        canvas.drawRoundRect(box, 16f, 16f, edge)
+
+        val rowsPerCol = (ControlMap.ROWS.size + 1) / 2
+        // Extra rows reserved below the data grid so the about block never
+        // collides with the last data row (it did, at the old row height).
+        val rowH = (box.height() - pad * 3f) / (rowsPerCol + 2 + ControlMap.ABOUT.size)
+        key.textSize = rowH * 0.58f
+        value.textSize = rowH * 0.5f
+        dim.textSize = rowH * 0.42f
+
+        canvas.drawText("CAROZERRA — CONTROLS", box.left + pad, box.top + pad + rowH, key)
+
+        val colW = (box.width() - pad * 2f) / 2f
+        // Measure the widest key so the value column starts clear of it,
+        // instead of a fixed fraction that only fit the shortest labels.
+        val valueOffset = ControlMap.ROWS.maxOf { key.measureText(it.first) } + rowH * 0.4f
+        ControlMap.ROWS.forEachIndexed { i, (k, v) ->
+            val col = i / rowsPerCol
+            val row = i % rowsPerCol
+            val x = box.left + pad + col * colW
+            val y = box.top + pad + rowH * (row + 2.4f)
+            canvas.drawText(k, x, y, key)
+            // Clip so a long value (e.g. the blackout row) can never bleed
+            // into the next column's key, whatever the measured offset is.
+            canvas.save()
+            canvas.clipRect(x + valueOffset, box.top, x + colW, box.bottom)
+            canvas.drawText(v, x + valueOffset, y, value)
+            canvas.restore()
+        }
+
+        ControlMap.ABOUT.forEachIndexed { i, line ->
+            canvas.drawText(
+                line, box.left + pad,
+                box.bottom - pad - dim.textSize * (ControlMap.ABOUT.size - i - 1) * 1.3f, dim
+            )
+        }
     }
 }
