@@ -1,13 +1,9 @@
 package io.github.youxufkhan.carozerra
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.RectF
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -33,40 +29,32 @@ class SelftestTest {
     }
 
     /**
-     * The faceplate photo alone, contain-fit into a window the same size as the
-     * live activity's, with nothing composited into the OEL. The bare faceplate
-     * art already clears a naive distinct-colour-count floor on its own (682+
-     * colours measured against an ">= 8" threshold), so that floor can't tell
-     * "clip painted" from "clip never painted" -- this baseline is what makes
-     * the real assertion below possible.
+     * The real render pipeline (`FaceplateView.onDraw`, via the `renderTo` test
+     * hook) with a freshly-constructed view whose `clip` is still null -- a
+     * throwaway view+repo, measured/laid out to the same window size, rendered
+     * synchronously right after construction, before the background decode
+     * thread has had any chance to land. This is deliberately NOT a hand-rolled
+     * reimplementation of "what onDraw draws with no clip": a hand-copied
+     * baseline silently drifted out of sync with the real pipeline twice
+     * (a Paint-filtering mismatch during Task 5's own fix round, then a whole
+     * new glow+scanlines stage added by Task 6) because it was separate code
+     * that nothing forced to track onDraw's changes. Calling the real method
+     * closes that bug class for good: any future onDraw change is automatically
+     * reflected in both this baseline and the live sample below.
      */
-    private fun faceplateOnlyOelColours(windowW: Int, windowH: Int): Set<Int> {
-        val ctx = InstrumentationRegistry.getInstrumentation().targetContext
-        val full = ctx.assets.open("pioneer.png").use { BitmapFactory.decodeStream(it) }
-        val face = Bitmap.createBitmap(full, 22, 204, 1559, 503)
-
-        val s = minOf(windowW / Geometry.BASE_W, windowH / Geometry.BASE_H)
-        val fw = Geometry.BASE_W * s
-        val fh = Geometry.BASE_H * s
-        val frameRect = RectF((windowW - fw) / 2f, (windowH - fh) / 2f,
-                               (windowW - fw) / 2f + fw, (windowH - fh) / 2f + fh)
-
-        // Must match FaceplateView.facePaint exactly (FILTER_BITMAP_FLAG |
-        // ANTI_ALIAS_FLAG) -- a bare-null Paint here nearest-neighbour-scales
-        // instead of bilinear-filtering, producing hundreds of edge-pixel
-        // colours the live bilinear-filtered render doesn't have. That mismatch
-        // alone clears the assertion below even with the clip never painted,
-        // silently defeating the whole point of this baseline.
-        val facePaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+    private fun currentPipelineBaselineOelColours(
+        context: android.content.Context, windowW: Int, windowH: Int,
+    ): Set<Int> {
+        val blank = FaceplateView(context, ClipRepository(context.assets))
+        blank.measure(
+            android.view.View.MeasureSpec.makeMeasureSpec(windowW, android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.makeMeasureSpec(windowH, android.view.View.MeasureSpec.EXACTLY),
+        )
+        blank.layout(0, 0, windowW, windowH)
         val canvasBmp = Bitmap.createBitmap(windowW, windowH, Bitmap.Config.ARGB_8888)
-        Canvas(canvasBmp).drawBitmap(face, null, frameRect, facePaint)
+        blank.renderTo(Canvas(canvasBmp))
 
-        val left = frameRect.left + Geometry.SCREEN[0] * frameRect.width()
-        val top = frameRect.top + Geometry.SCREEN[1] * frameRect.height()
-        val oel = RectF(left, top,
-            left + Geometry.SCREEN[2] * frameRect.width(),
-            top + Geometry.SCREEN[3] * frameRect.height())
-
+        val oel = blank.screenRect()
         return colourSet(canvasBmp,
             oel.left.toInt() + 2, oel.top.toInt() + 2,
             oel.right.toInt() - 2, oel.bottom.toInt() - 2)
@@ -87,6 +75,16 @@ class SelftestTest {
             }
             assertTrue("no clip decoded within 15s", loaded)
 
+            // The onboarding control-map card shows automatically for 5s at launch,
+            // covering the whole faceplate (Task 13) -- independent of whether the
+            // clip decoded. Dismiss it deterministically rather than racing its
+            // auto-hide timer, so both samples below see the real faceplate/OEL.
+            // If a future overlay ever auto-shows at launch the way `card` does, it
+            // must be dismissed here too -- any sibling view drawn on top of
+            // FaceplateView will mask this test's sample window regardless of whether
+            // the clip itself renders correctly.
+            scenario.onActivity { activity -> activity.card.hide() }
+
             var distinctOnScreen = 0
             var liveOelColours: Set<Int> = emptySet()
             var baselineOelColours: Set<Int> = emptySet()
@@ -102,7 +100,7 @@ class SelftestTest {
                     oel.left.toInt() + 2, oel.top.toInt() + 2,
                     oel.right.toInt() - 2, oel.bottom.toInt() - 2)
 
-                baselineOelColours = faceplateOnlyOelColours(root.width, root.height)
+                baselineOelColours = currentPipelineBaselineOelColours(activity, root.width, root.height)
             }
 
             assertTrue("whole window: only $distinctOnScreen colours", distinctOnScreen >= 32)

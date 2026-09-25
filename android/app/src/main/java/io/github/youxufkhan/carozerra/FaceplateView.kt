@@ -350,6 +350,9 @@ class FaceplateView(
         if (debugHitboxes) drawHitboxes(canvas)
     }
 
+    /** Test-only entry point: `onDraw` is protected, this exposes the same real render path. */
+    fun renderTo(canvas: Canvas) = onDraw(canvas)
+
     /** Debug builds only: strokes every hitbox so the measurements can be checked. */
     var debugHitboxes: Boolean = BuildConfig.DEBUG
         set(value) { field = value; invalidate() }

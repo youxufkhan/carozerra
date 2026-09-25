@@ -12,7 +12,7 @@ class MainActivity : Activity() {
     private lateinit var repo: ClipRepository
     private lateinit var view: FaceplateView
     private lateinit var gallery: GalleryOverlay
-    private lateinit var card: CardOverlay
+    internal lateinit var card: CardOverlay
     private lateinit var audio: AudioBridge
     private lateinit var level: LevelSource
     private val poll = android.os.Handler(android.os.Looper.getMainLooper())
@@ -108,6 +108,8 @@ class MainActivity : Activity() {
         root.addView(card)
         setContentView(root)
 
+        // SelftestTest explicitly dismisses this before sampling the OEL -- if you
+        // add another overlay that auto-shows at launch, update that test too.
         card.show()
         android.os.Handler(android.os.Looper.getMainLooper())
             .postDelayed({ card.hide() }, 5000L)
