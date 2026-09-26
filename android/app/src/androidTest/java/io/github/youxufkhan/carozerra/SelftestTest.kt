@@ -94,6 +94,7 @@ class SelftestTest {
                 activity.faceplate.glowIntensity = 0
                 activity.faceplate.glow = false
                 activity.faceplate.debugHitboxes = false
+                activity.faceplate.overlays.meters = false
                 val shot = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
                 root.draw(Canvas(shot))
 

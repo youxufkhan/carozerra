@@ -188,7 +188,7 @@ class FaceplateView(
                     if (d < -180f) d += 360f
                     if (kotlin.math.abs(d) > 0.5f) {
                         knobAngle = a
-                        dragPct += d / 280f * 100f
+                        dragPct = (dragPct + d / 280f * 100f).coerceIn(0f, 100f)
                         onVolumeDrag?.invoke(dragPct)
                     }
                 }
