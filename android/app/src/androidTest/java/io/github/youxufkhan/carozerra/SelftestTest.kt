@@ -90,6 +90,10 @@ class SelftestTest {
             var baselineOelColours: Set<Int> = emptySet()
             scenario.onActivity { activity ->
                 val root = activity.window.decorView
+                activity.faceplate.scanlines = false
+                activity.faceplate.glowIntensity = 0
+                activity.faceplate.glow = false
+                activity.faceplate.debugHitboxes = false
                 val shot = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
                 root.draw(Canvas(shot))
 

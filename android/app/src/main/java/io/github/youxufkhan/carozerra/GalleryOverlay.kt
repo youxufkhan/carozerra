@@ -98,7 +98,12 @@ class GalleryOverlay(
 
             val target = row.clip
             Thread {
-                val bmp: Bitmap = repo.thumbnail(target)
+                val bmp: Bitmap = try {
+                    repo.thumbnail(target)
+                } catch (e: Throwable) {
+                    android.util.Log.e("GalleryOverlay", "thumbnail failed for $target", e)
+                    return@Thread
+                }
                 holder.image.post {
                     if (holder.boundClip == target) {
                         holder.image.setImageBitmap(bmp)

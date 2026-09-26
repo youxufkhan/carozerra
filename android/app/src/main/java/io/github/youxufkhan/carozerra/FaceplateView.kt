@@ -47,7 +47,12 @@ class FaceplateView(
      */
     private fun loadClip(name: String) {
         Thread {
-            val loaded = repo.render(name)
+            val loaded = try {
+                repo.render(name)
+            } catch (e: Throwable) {
+                android.util.Log.e("FaceplateView", "decode failed for $name", e)
+                return@Thread
+            }
             post {
                 if (clipName == name) {
                     clip = loaded
@@ -88,6 +93,14 @@ class FaceplateView(
         categoryIndex = (categoryIndex + 1) % ClipCatalog.categories.size
         indexInCategory = 0
         clipName = categoryClips[0]
+    }
+
+    fun select(name: String) {
+        val catIdx = ClipCatalog.categories.indexOfFirst { name in it.clips }
+        if (catIdx < 0) return
+        categoryIndex = catIdx
+        indexInCategory = categoryClips.indexOf(name).coerceAtLeast(0)
+        clipName = name
     }
 
     var onControl: ((Hit) -> Boolean)? = null
@@ -136,6 +149,7 @@ class FaceplateView(
     private var downAt = 0L
     private var draggingKnob = false
     private var knobAngle = 0f
+    private var dragPct = 0f
     private var swipeCandidate = false
 
     private val tapSlopPx get() = 0.02f * faceplateRect().width()
@@ -160,7 +174,10 @@ class FaceplateView(
                 val hit = Geometry.hit(bx, by)
                 draggingKnob = hit?.control == Control.VOLUME
                 swipeCandidate = hit == null
-                if (draggingKnob) knobAngle = angleToKnob(bx, by)
+                if (draggingKnob) {
+                    knobAngle = angleToKnob(bx, by)
+                    dragPct = volumePercent.toFloat()
+                }
                 return true
             }
             android.view.MotionEvent.ACTION_MOVE -> {
@@ -171,7 +188,8 @@ class FaceplateView(
                     if (d < -180f) d += 360f
                     if (kotlin.math.abs(d) > 0.5f) {
                         knobAngle = a
-                        onVolumeDrag?.invoke(d / 280f * 100f)
+                        dragPct += d / 280f * 100f
+                        onVolumeDrag?.invoke(dragPct)
                     }
                 }
                 return true
@@ -354,7 +372,7 @@ class FaceplateView(
     fun renderTo(canvas: Canvas) = onDraw(canvas)
 
     /** Debug builds only: strokes every hitbox so the measurements can be checked. */
-    var debugHitboxes: Boolean = BuildConfig.DEBUG
+    var debugHitboxes: Boolean = false
         set(value) { field = value; invalidate() }
 
     private val debugPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {

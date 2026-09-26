@@ -42,11 +42,16 @@ class MainActivity : Activity() {
         view = FaceplateView(this, repo)
         audio = AudioBridge(this)
         level = LevelSource(audio)
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 1)
+        }
         view.levelProvider = { level.level }
         view.availableProvider = { level.available }
         view.volumePercent = audio.refreshVolume()
-        view.onVolumeDrag = { delta ->
-            audio.setVolumePercent(audio.volumePercent + Math.round(delta))
+        view.onVolumeDrag = { pct ->
+            audio.setVolumePercent(Math.round(pct))
             view.volumePercent = audio.volumePercent
         }
         view.onKnobTap = {
@@ -101,7 +106,7 @@ class MainActivity : Activity() {
         val root = android.widget.FrameLayout(this)
         root.addView(view)
         gallery = GalleryOverlay(this, repo) { name ->   // the same repository the view uses
-            view.clipName = name
+            view.select(name)
         }
         root.addView(gallery)
         card = CardOverlay(this)
@@ -162,7 +167,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         poll.post(pollVolume)
-        startLevelSource()
+        startLevelSourceIfGranted()
     }
 
     override fun onPause() {
@@ -171,15 +176,13 @@ class MainActivity : Activity() {
         super.onPause()
     }
 
-    private fun startLevelSource() {
+    private fun startLevelSourceIfGranted() {
         if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
-            != android.content.pm.PackageManager.PERMISSION_GRANTED
+            == android.content.pm.PackageManager.PERMISSION_GRANTED
         ) {
-            requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 1)
-            return
+            level.start()
+            view.overlays.meters = level.available
         }
-        level.start()
-        view.overlays.meters = level.available
     }
 
     override fun onRequestPermissionsResult(
@@ -187,6 +190,6 @@ class MainActivity : Activity() {
     ) {
         if (requestCode == 1 &&
             grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED
-        ) startLevelSource()
+        ) startLevelSourceIfGranted()
     }
 }
