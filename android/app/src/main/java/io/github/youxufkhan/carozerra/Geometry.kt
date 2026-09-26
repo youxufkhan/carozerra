@@ -25,8 +25,12 @@ object Geometry {
     const val BASE_W = 1559f
     const val BASE_H = 503f
 
-    /** OEL screen rect: left, top, width, height. */
-    val SCREEN = floatArrayOf(0.2250f, 0.3117f, 0.4608f, 0.3213f)
+    /**
+     * OEL screen rect: left, top, width, height. The left edge is the glass seam,
+     * not the bezel — the desktop app's 0.2250 reached over TEXT and DISP/SCRL.
+     * Right edge unchanged at 0.6858.
+     */
+    val SCREEN = floatArrayOf(0.3200f, 0.3117f, 0.3658f, 0.3213f)
 
     val LKNOB = Pair(0.1430f, 0.4990f)
     const val LKNOB_HIT = 0.0629f          // radius, fraction of BASE_W

@@ -36,6 +36,18 @@ class GeometryTest {
     }
 
     @Test
+    fun noBoxSitsUnderTheScreen() {
+        // The clip is drawn opaque over SCREEN, so any button inside it is
+        // painted over and can't be seen.
+        val (sl, st, sw, sh) = Geometry.SCREEN.toList()
+        for ((control, b) in Geometry.boxes) {
+            val overlaps = b.cx - b.hw < sl + sw && b.cx + b.hw > sl &&
+                b.cy - b.hh < st + sh && b.cy + b.hh > st
+            org.junit.Assert.assertFalse("$control sits under SCREEN", overlaps)
+        }
+    }
+
+    @Test
     fun presetsResolveByIndex() {
         for (i in 0 until 6) {
             val h = hitAtFraction(Geometry.PRESETS_X[i], Geometry.PRESETS_Y)

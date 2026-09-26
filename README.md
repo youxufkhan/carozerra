@@ -207,9 +207,11 @@ DEH-P7600MP owner's manual prints against it:
 | **SOURCE** | next category |
 
 Track skip and play/pause go through permission-free media keys rather than
-a media-session/notification-listener integration. The app does prompt for
-microphone access on first launch — that's for the AUDIO level meters
-(`RECORD_AUDIO`, requested via `Visualizer`), not for transport.
+a media-session/notification-listener integration. On first launch the app
+explains, then asks for, microphone access (`RECORD_AUDIO`) — that's for the
+AUDIO level meters, which read what the device is playing via `Visualizer`.
+Android gates that behind the same permission as the microphone; the app never
+reads microphone audio. "Not now" skips it and the meters stay off.
 
 Why beta, not a full release:
 
@@ -217,18 +219,20 @@ Why beta, not a full release:
   Windows build's missing code signing. Uninstall the app before sideloading
   a newer build; Android won't install a differently-signed APK over an
   existing one.
-- **Audio capture is honest about what it can't verify.** AUDIO reads real
-  output-mix levels via `Visualizer` where the platform allows it. On the
-  development emulator, which has no audio HAL, `Visualizer`'s constructor
-  itself fails (`ERROR_NO_INIT`) — the app treats that as "no signal" rather
-  than faking one: AUDIO flashes **NO SIGNAL** and the meter zone stays
-  hidden instead of showing frozen or invented bars. That's correct behavior
-  for a meter with nothing to measure; whether real head-unit hardware
-  exposes output-mix capture at all is unverified.
-- **Untested on real head-unit hardware.** Built and verified only on an
-  Android emulator (API 29, landscape, both a generic Pixel profile and an
-  Automotive profile) — the same caveat the Windows build carries, for the
-  same reason: nobody has run it on the actual target yet.
+- **The level meters don't work on at least one real phone.** AUDIO reads
+  output-mix levels via the legacy `Visualizer(0)` API. On a Redmi Note 14
+  (Android 16) playing YouTube Music, with the permission granted, it still
+  shows **NO SIGNAL** — modern Android and OEM skins often don't feed
+  whole-device playback through that API (offloaded playback bypasses it, or
+  the OS refuses to attach it). The development emulator, which has no audio
+  HAL, fails the same way (`ERROR_NO_INIT`). Either way the app says "no
+  signal" and keeps the meter zone hidden instead of showing frozen or
+  invented bars. Making the meters work reliably means moving to Android's
+  playback-capture API (`MediaProjection`), which is planned, not done.
+- **Untested on real head-unit hardware.** Built and verified on an Android
+  emulator (API 29, landscape, both a generic Pixel profile and an Automotive
+  profile) and hand-tested on one phone — not yet on the actual target, a
+  head unit.
 
 ## `decode.py` — batch converter
 
