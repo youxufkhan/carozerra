@@ -157,6 +157,79 @@ Geometry (screen rect, knob centers, button hitboxes) lives in the `G` dict
 at the top of `carozerra.py` as fractions of the faceplate, so it scales with
 the window and is easy to re-tune against a different photo.
 
+### Android (beta)
+
+A native app for Android-based aftermarket head units — the same faceplate
+and decoder, running fullscreen on the dashboard instead of floating on a
+desktop.
+
+**Sideload only** — no Play Store listing. These units ship without Play
+Services, so install is a plain APK from the latest
+[prerelease](../../releases):
+
+```bash
+adb install carozerra_<version>_android.apk
+```
+
+**Or build it yourself** (needs JDK 21 and the Android SDK — AGP 8.13 does
+not support newer JDKs):
+
+```bash
+cd android
+./gradlew assembleDebug
+adb install app/build/outputs/apk/debug/app-debug.apk
+```
+
+`minSdk 29` (Android 10), locked to `sensorLandscape`, immersive fullscreen
+(system bars hidden, swipe to reveal), and `FLAG_KEEP_SCREEN_ON` so the
+display doesn't blank part-way through a clip — a dashboard has no reason to
+sleep. All 17 faceplate controls are live, each mapped to the function the
+DEH-P7600MP owner's manual prints against it:
+
+| Control | Action |
+|---|---|
+| **TA** | mute |
+| **VOLUME** turn | system volume |
+| **VOLUME** press | blackout · any touch wakes |
+| **DISPLAY** | clean / clock / clock + info |
+| **TEXT** | scrolling text line |
+| **FUNCTION** | glow on/off |
+| **AUDIO** | level meters |
+| **NAV** left/right | previous / next track |
+| **NAV** up/down | animation speed |
+| **NAV** press | play / pause |
+| **OPEN** | control map / about card |
+| **BAND** | close · hold to exit |
+| **ENTERTAINMENT** | clip gallery (all 83 clips) |
+| **EQ-EX** | scanlines |
+| **1–6** | presets — clips 1-6 of the category |
+| **EQ** | glow intensity |
+| **SOURCE** | next category |
+
+Track skip and play/pause go through permission-free media keys rather than
+a media-session/notification-listener integration. The app does prompt for
+microphone access on first launch — that's for the AUDIO level meters
+(`RECORD_AUDIO`, requested via `Visualizer`), not for transport.
+
+Why beta, not a full release:
+
+- **Debug-signed.** There's no release keystore yet — same open item as the
+  Windows build's missing code signing. Uninstall the app before sideloading
+  a newer build; Android won't install a differently-signed APK over an
+  existing one.
+- **Audio capture is honest about what it can't verify.** AUDIO reads real
+  output-mix levels via `Visualizer` where the platform allows it. On the
+  development emulator, which has no audio HAL, `Visualizer`'s constructor
+  itself fails (`ERROR_NO_INIT`) — the app treats that as "no signal" rather
+  than faking one: AUDIO flashes **NO SIGNAL** and the meter zone stays
+  hidden instead of showing frozen or invented bars. That's correct behavior
+  for a meter with nothing to measure; whether real head-unit hardware
+  exposes output-mix capture at all is unverified.
+- **Untested on real head-unit hardware.** Built and verified only on an
+  Android emulator (API 29, landscape, both a generic Pixel profile and an
+  Automotive profile) — the same caveat the Windows build carries, for the
+  same reason: nobody has run it on the actual target yet.
+
 ## `decode.py` — batch converter
 
 ```bash
@@ -181,7 +254,7 @@ website must go out before (or with) the tag — otherwise a new Release ships
 alongside a site still serving the previous player.
 
 ```bash
-git push origin main          # triggers packaging-check.yml + windows-check.yml + pages.yml
+git push origin main          # triggers packaging-check.yml + windows-check.yml + android-check.yml + pages.yml
 # wait for all green, and confirm the live site picked up the new build
 git tag v1.2.0
 git push origin v1.2.0        # triggers release.yml
@@ -190,13 +263,21 @@ git push origin v1.2.0        # triggers release.yml
 Use the two-step push rather than `git push --tags`: that pushes only the tag,
 leaving `main` (and the site) behind.
 
-`release.yml` builds the `.deb` and the Windows `.exe` and attaches both to a
-new GitHub Release automatically. A tag with a `-` suffix (e.g.
+`release.yml` builds the `.deb`, the Windows `.exe`, and the Android `.apk`,
+and attaches all three to a new GitHub Release automatically. A tag with a
+`-` suffix (e.g.
 `v1.3.0-beta.1`) is published as a **prerelease**; a clean `vX.Y.Z` is a
 normal release — the workflow reads that off the tag name, nothing to set by
 hand. (The `.deb`'s own version string swaps that `-` for dpkg's `~`, which
 sorts a prerelease *before* the final version it precedes — verify with
 `dpkg --compare-versions` if you're inventing a new prerelease scheme.)
+
+Before tagging, also bump `versionName`/`versionCode` in
+`android/app/build.gradle.kts` to match — unlike the `.deb` (which takes its
+version as a build argument) and the `.exe` (whose filename is derived from
+the tag), the Android build has no mechanism to pick up the tag
+automatically yet, so its internal version has to be updated by hand or it
+will silently ship stale.
 
 To build locally without releasing:
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Android app for head units (`android/`): a native Kotlin app for Android-based aftermarket head units, running the faceplate fullscreen instead of floating on a desktop. 17 live faceplate controls, each mapped to the function the DEH-P7600MP owner's manual prints against it — TA, volume (+ blackout), DISPLAY, TEXT, FUNCTION, the AUDIO level meters, the nav knob (permission-free media-key transport: skip, speed, play/pause), OPEN, BAND, ENTERTAINMENT, EQ-EX, Presets 1–6, EQ, and SOURCE. DISPLAY's clock/metadata, the scrolling TEXT line, and the level meters are composited as OEL overlays drawn straight into the faceplate's 256×64 screen space, alongside the playing clip; the control-map/about card and the clip gallery (all 83 clips) are separate overlay views on top. Level meters report `NO SIGNAL` and hide the meter zone instead of faking a reading when output-mix capture isn't available. Ships as a debug-signed beta APK; see the README's Android section for install instructions and known limitations.
+- CI: `.github/workflows/android-check.yml` builds, unit-tests, and instrumented-tests the Android app on every push/PR touching `android/**` or `assets/**`; `release.yml` now attaches `carozerra_<version>_android.apk` to tagged releases alongside the `.deb` and `.exe`.
+
 ## [1.3.0-beta.1] - 2026-09-15
 
 **Windows build, beta.** First Windows release — a `carozerra.exe` attached

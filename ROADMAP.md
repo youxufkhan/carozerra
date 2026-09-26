@@ -9,6 +9,10 @@ This document outlines the planned features, requested enhancements, and future 
     *   *Done:* `packaging/carozerra.spec` builds a single 46.7 MB `carozerra.exe` (PyInstaller, onefile, no console), with the icon generated from the faceplate art at build time. `.github/workflows/windows-check.yml` builds and smoke-tests it on every relevant change; `release.yml` runs the same build+smoke and attaches the `.exe` to tagged releases. CI's screenshot confirms DWM composites the frameless translucent window correctly and a clip plays from inside the frozen exe — and the author has now run it by hand on a real Windows machine (resize and HiDPI included).
     *   *Open — needed before a stable (non-beta) release:* the **volume knob does nothing on Windows.** It drives `wpctl`/`pactl`, neither of which exists there, so `get_volume()` returns a fixed 50 and the knob turns while lying. Either wire it to `pycaw` (~0.5–1 day, real volume control) or disable the knob's volume role on Windows (~1 hour, honest but a dead control on the faceplate).
     *   *Open — inherent to an unsigned binary:* SmartScreen warns on first launch, and PyInstaller output draws antivirus false positives (UPX is deliberately off in the spec for that reason). Code signing costs money; until then this stays labelled beta with the warning documented in the README.
+*   **Android App for Head Units** — *shipped as beta*
+    *   *Details:* A native Android application for modern Android-based aftermarket head units, bringing the retro Pioneer aesthetic back to the dashboard.
+    *   *Done:* A Kotlin app (`android/`, `minSdk 29`) with 17 live faceplate controls, each mapped to the function the DEH-P7600MP owner's manual prints against it — versus 5 in `carozerra.py`. Landscape-locked, immersive fullscreen, and `FLAG_KEEP_SCREEN_ON` so the display doesn't blank mid-clip. `.github/workflows/android-check.yml` builds, unit-tests, and instrumented-tests it on every relevant push/PR; `release.yml` now attaches a `carozerra_<version>_android.apk` to tagged releases alongside the `.deb` and `.exe`. Built and verified on an Android emulator (API 29, landscape, both a generic Pixel profile and an Automotive profile).
+    *   *Open — needed before a stable (non-beta) release:* **untested on real head-unit hardware** — emulator-only so far, same caveat the Windows build carries. **Debug-signed** — no release keystore yet, so a newer build must be uninstalled before reinstalling; same open item as the Windows build's missing code signing. **Output-mix audio capture is unverified on real hardware** — the development emulator has no audio HAL, so `Visualizer`'s constructor fails (`ERROR_NO_INIT`) and the app correctly falls back to `NO SIGNAL` with the meter zone hidden; whether a real head unit's audio HAL supports capture at all is unknown.
 
 ## 🟡 Medium Priority / Platform Expansion
 
@@ -23,7 +27,5 @@ This document outlines the planned features, requested enhancements, and future 
 
 ## 🔴 Long-Term / New Ecosystems
 
-*   **Android App for Head Units**
-    *   *Details:* Build a native Android application designed specifically to run on modern Android-based aftermarket head units, bringing the retro Pioneer aesthetic back to the dashboard.
 *   **Android Live Wallpaper & Widget**
     *   *Details:* Develop an Android animated background (Live Wallpaper) that plays the `.lkd` clips, and a homescreen media control widget styled like the classic head unit.

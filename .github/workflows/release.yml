@@ -54,8 +54,39 @@ jobs:
           name: windows-release-smoke
           path: smoke/*.png
 
+  build-android:
+    # Same toolchain (Temurin 21) and assembleDebug step android-check.yml
+    # uses, so a release ships an APK built the same way CI already proved
+    # works. Skips that workflow's unit/instrumented tests -- CI already
+    # gates the commit being tagged; this job only needs the artifact.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'          # AGP 8.13 does not support the JDK 25 on dev machines
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Rename for release
+        run: |
+          # Same rule the .exe follows: the tag (and this filename) keep the
+          # hyphen -- only the .deb's version string needs dpkg's tilde.
+          version="${GITHUB_REF_NAME#v}"
+          mv android/app/build/outputs/apk/debug/app-debug.apk \
+             "android/app/build/outputs/apk/debug/carozerra_${version}_android.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: android/app/build/outputs/apk/debug/carozerra_*_android.apk
+
   release:
-    needs: build-windows
+    needs: [build-windows, build-android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -70,8 +101,8 @@ jobs:
           # (verified with dpkg --compare-versions) -- exactly backwards for
           # upgrades. "~" sorts before, which is what a prerelease needs, so
           # translate the tag's semver hyphen to dpkg's tilde for this one
-          # step. The tag itself, and the .exe filename, keep the hyphen --
-          # only the .deb's version string needs the substitution.
+          # step. The tag itself, and the .exe/.apk filenames, keep the
+          # hyphen -- only the .deb's version string needs the substitution.
           VERSION="$(echo "${GITHUB_REF_NAME#v}" | tr '-' '~')"
           ./packaging/build-deb.sh "$VERSION"
 
@@ -80,14 +111,20 @@ jobs:
           name: windows-exe
           path: dist-windows
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-apk
+          path: dist-android
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           # a tag with a "-" suffix (e.g. v1.3.0-beta.1) is a prerelease;
           # a clean vX.Y.Z is a stable release -- no flag to remember to flip
           prerelease: ${{ contains(github.ref_name, '-') }}
-          body: ${{ contains(github.ref_name, '-') && 'Prerelease. See the README''s Windows section for known limitations before filing an issue.' || '' }}
+          body: ${{ contains(github.ref_name, '-') && 'Prerelease. See the README''s Windows and Android sections for known limitations before filing an issue.' || '' }}
           generate_release_notes: true
           files: |
             packaging/dist/*.deb
             dist-windows/*.exe
+            dist-android/*.apk
