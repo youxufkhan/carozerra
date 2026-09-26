@@ -108,7 +108,7 @@ carozerra
 no pip install:
 
 ```bash
-sudo apt install python3-pyqt6 python3-pil python3-numpy
+sudo apt install python3-pyqt6 python3-pil
 python3 carozerra.py
 ```
 

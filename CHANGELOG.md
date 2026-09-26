@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Packaging: dropped the unused `python3-numpy` dependency from the `.deb` and the run-from-source instructions. Nothing imports it.
+
 ## [1.3.0-beta.2] - 2026-09-26
 
 **Android app, beta.** First Android release — a `carozerra_1.3.0-beta.2_android.apk`
