@@ -246,7 +246,17 @@ class FaceplateView(
     var scanlines: Boolean = true
         set(value) { field = value; invalidate() }
 
-    val overlays = OelOverlays()
+    private val pixelFont: Typeface = context.resources.getFont(R.font.smallest_pixel_7)
+
+    val overlays = OelOverlays(pixelFont)
+
+    private val flashPaint = Paint().apply {
+        isAntiAlias = false
+        color = OEL_CYAN
+        textAlign = Paint.Align.CENTER
+        typeface = pixelFont
+    }
+    private val flashPlate = Paint().apply { color = 0xFF000000.toInt() }
 
     private var flashText: String? = null
     private var flashUntil = 0L
@@ -355,13 +365,12 @@ class FaceplateView(
                 flashText = null
             } else {
                 val s = screenRect()
-                val p = Paint().apply {
-                    isAntiAlias = false; color = OEL_CYAN
-                    textSize = s.height() * 0.28f
-                    textAlign = Paint.Align.CENTER
-                    typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
-                }
-                canvas.drawText(it, s.centerX(), s.centerY(), p)
+                val px = s.height() / 64f
+                flashPaint.textSize = 20f * px     // font pixel = 2 OEL pixels
+                val baseline = s.centerY() + 5 * px
+                val half = flashPaint.measureText(it) / 2 + 2 * px
+                canvas.drawRect(s.centerX() - half, baseline - 12 * px, s.centerX() + half, baseline + 2 * px, flashPlate)
+                canvas.drawText(it, s.centerX(), baseline, flashPaint)
             }
         }
 

@@ -26,12 +26,11 @@ object Zones {
 const val OEL_CYAN = 0xFF12E0FF.toInt()
 
 /**
- * Text is a system monospace face with antialiasing off, tinted OEL cyan and
- * scaled to the zone. At this size that already yields hard pixel edges, and the
- * bloom and scanline passes run over the result — a hand-authored bitmap font
- * would cost ~40 glyphs of work for no visible gain.
+ * Text uses Smallest Pixel-7, a 4x5 pixel font: at textSize 10 one font pixel is
+ * one screen pixel. [oelText] sizes it in whole OEL pixels (the display is 64
+ * rows tall), so each glyph pixel covers exactly 1 or 2 lit OEL cells.
  */
-class OelOverlays {
+class OelOverlays(typeface: Typeface) {
 
     var displayMode: Int = 0            // 0 clean, 1 clock, 2 clock + metadata
         set(value) { field = ((value % 3) + 3) % 3 }
@@ -42,7 +41,7 @@ class OelOverlays {
     private val text = Paint().apply {
         isAntiAlias = false
         color = OEL_CYAN
-        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        this.typeface = typeface
     }
 
     private val meterBg = Paint().apply { color = 0xFF000000.toInt() }
@@ -98,24 +97,41 @@ class OelOverlays {
         val label = "%d:%02d".format(
             now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE)
         )
-        text.textSize = r.height()
-        canvas.drawText(label, r.left, r.bottom, text)
+        val px = oelText(screen, 2)
+        plated(canvas, label, r.left, r.bottom, 2, px)
     }
 
     private fun drawMeta(canvas: Canvas, screen: RectF, clipName: String, category: String) {
         val r = Zones.inScreen(Zones.CLOCK, screen)
-        text.textSize = r.height() * 0.5f
-        canvas.drawText(
-            "${clipName.removeSuffix(".lkd")}  $category",
-            r.left, r.bottom + r.height() * 0.7f, text
-        )
+        val px = oelText(screen, 1)
+        plated(canvas, "${clipName.removeSuffix(".lkd")}  $category", r.left, r.bottom + 7 * px, 1, px)
     }
 
     private fun drawIndicators(canvas: Canvas, screen: RectF, showLoud: Boolean, showEqEx: Boolean) {
         val r = Zones.inScreen(Zones.INDICATORS, screen)
-        text.textSize = r.height() * 0.45f
-        if (showLoud) canvas.drawText("LOUD", r.left, r.top + r.height() * 0.45f, text)
-        if (showEqEx) canvas.drawText("EQ-EX", r.left, r.bottom, text)
+        val px = oelText(screen, 1)
+        if (showLoud) plated(canvas, "LOUD", r.left, r.top + 5 * px, 1, px)
+        if (showEqEx) plated(canvas, "EQ-EX", r.left, r.top + 12 * px, 1, px)
+    }
+
+    private val plate = Paint().apply { color = 0xFF000000.toInt() }
+
+    /**
+     * Text on a black cut-out, the way the real unit shows its clock and
+     * indicators over the animation — cyan on a lit cyan clip is unreadable.
+     * Glyphs are 5 font pixels tall and sit on the baseline.
+     */
+    private fun plated(canvas: Canvas, label: String, x: Float, baseline: Float, scale: Int, px: Float) {
+        val w = text.measureText(label)
+        canvas.drawRect(x - px, baseline - (5 * scale + 1) * px, x + w + px, baseline + px, plate)
+        canvas.drawText(label, x, baseline, text)
+    }
+
+    /** Size [text] so one font pixel is [scale] OEL pixels; returns one OEL pixel. */
+    private fun oelText(screen: RectF, scale: Int): Float {
+        val px = screen.height() / 64f
+        text.textSize = 10f * scale * px
+        return px
     }
 
     private fun drawTextLine(
@@ -125,11 +141,12 @@ class OelOverlays {
         // No track title: transport is write-only, so the app has no source for
         // one, and scrolling a guessed title would be the knob that lies.
         val label = "${clipName.removeSuffix(".lkd")}  ·  $category  ·  $frames FRAMES      "
-        text.textSize = r.height()
+        oelText(screen, 1)
         val w = text.measureText(label)
         scrollOffset = (scrollOffset + r.width() * 0.004f) % w
         canvas.save()
         canvas.clipRect(r)
+        canvas.drawRect(r, plate)
         var x = r.left - scrollOffset
         while (x < r.right) {
             canvas.drawText(label, x, r.bottom, text)
@@ -165,6 +182,7 @@ object ControlMap {
     val ABOUT: List<String> = listOf(
         "CAROZERRA — Pioneer DEH-P7600MP visualizer",
         "83 decoded .lkd animations · MIT licensed",
+        "Display font: Smallest Pixel-7 by Sizenko Alexander, styleseven.com",
         "github.com/youxufkhan/carozerra",
     )
 }

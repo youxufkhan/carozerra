@@ -296,7 +296,11 @@ packaging/build-deb.sh 1.2.0
 `packaging/`, `.github/`). The Pioneer product photography under
 `assets/pioneer.png` and `reference/` is not original work of this project
 and isn't covered by the license — it's included for reverse-engineering
-documentation and UI purposes only.
+documentation and UI purposes only. The Android app's display font,
+[Smallest Pixel-7](http://www.styleseven.com/) by Sizenko Alexander
+(`android/app/src/main/res/font/`), isn't covered either: it's freeware,
+usable in freeware software with credit — terms in
+`android/licenses/smallest-pixel-7.txt`.
 
 <details>
 <summary>Repo layout</summary>
