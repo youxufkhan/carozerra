@@ -42,11 +42,7 @@ class MainActivity : Activity() {
         view = FaceplateView(this, repo)
         audio = AudioBridge(this)
         level = LevelSource(audio)
-        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
-            != android.content.pm.PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 1)
-        }
+        maybeRequestMicPermission()
         view.levelProvider = { level.level }
         view.availableProvider = { level.available }
         view.volumePercent = audio.refreshVolume()
@@ -118,6 +114,51 @@ class MainActivity : Activity() {
         card.show()
         android.os.Handler(android.os.Looper.getMainLooper())
             .postDelayed({ card.hide() }, 5000L)
+    }
+
+    /**
+     * Shown once, ever, before the system permission dialog: RECORD_AUDIO reads
+     * this device's own playing audio for the level meters, not the microphone --
+     * Android just gates both behind the same permission.
+     */
+    private fun maybeRequestMicPermission() {
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
+            == android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) return
+
+        val prefs = getSharedPreferences("carozerra", MODE_PRIVATE)
+        if (prefs.getBoolean("mic_rationale_shown", false)) return
+
+        micRationaleDialog = android.app.AlertDialog.Builder(this)
+            .setTitle("Level meters need audio access")
+            .setMessage(
+                "The AUDIO button drives live level meters from whatever is " +
+                    "actually playing on this device, the way a real head unit " +
+                    "shows a live signal. Android requires the same RECORD_AUDIO " +
+                    "permission for reading on-device playback as it does for the " +
+                    "microphone -- this app never accesses microphone audio.\n\n" +
+                    "You can skip this; the meters will just stay off."
+            )
+            .setPositiveButton("Continue") { _, _ ->
+                prefs.edit().putBoolean("mic_rationale_shown", true).apply()
+                requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 1)
+            }
+            .setNegativeButton("Not now") { _, _ ->
+                prefs.edit().putBoolean("mic_rationale_shown", true).apply()
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    // Dismissed explicitly rather than left to the system: an AlertDialog
+    // outlives its Activity's window unless dismissed, which Android reports
+    // as a leaked window if onDestroy runs while it's still showing (e.g. the
+    // user backgrounds the app before tapping either button).
+    private var micRationaleDialog: android.app.AlertDialog? = null
+
+    override fun onDestroy() {
+        micRationaleDialog?.dismiss()
+        super.onDestroy()
     }
 
     private fun blackoutOn() {
