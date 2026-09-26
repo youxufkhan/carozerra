@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0-beta.2] - 2026-09-26
+
+**Android app, beta.** First Android release — a `carozerra_1.3.0-beta.2_android.apk`
+attached alongside the `.deb` and `.exe`. Sideload only, debug-signed, and not
+yet run on a real head unit, so it's marked prerelease.
+
+### Added
+- Android app for head units (`android/`): a native Kotlin app for Android-based aftermarket head units, running the faceplate fullscreen instead of floating on a desktop. 17 live faceplate controls, each mapped to the function the DEH-P7600MP owner's manual prints against it — TA, volume (+ blackout), DISPLAY, TEXT, FUNCTION, the AUDIO level meters, the nav knob (permission-free media-key transport: skip, speed, play/pause), OPEN, BAND, ENTERTAINMENT, EQ-EX, Presets 1–6, EQ, and SOURCE. DISPLAY's clock/metadata, the scrolling TEXT line, and the level meters are composited as OEL overlays drawn straight into the faceplate's 256×64 screen space, alongside the playing clip; the control-map/about card and the clip gallery (all 83 clips) are separate overlay views on top. Display text uses the Smallest Pixel-7 pixel font, sized in whole OEL pixels on black cut-outs. On first launch the app explains why it wants microphone access (the level meters read on-device playback, which Android gates behind the same permission) before Android's own prompt. Level meters report `NO SIGNAL` and hide the meter zone instead of faking a reading when output-mix capture isn't available.
+- Web player: a "Download for Android" button, linking to the newest release that has an APK. Clicks are counted as a GA4 `android_download` event.
+- CI: `.github/workflows/android-check.yml` builds, unit-tests, and instrumented-tests the Android app on every push/PR touching `android/**` or `assets/**`; `release.yml` now attaches `carozerra_<version>_android.apk` to tagged releases alongside the `.deb` and `.exe`.
+
+### Known limitations
+- The AUDIO level meters don't work on the one real phone tested so far (Redmi Note 14, Android 16, playing YouTube Music): `Visualizer` gets no signal, so they show `NO SIGNAL`. Moving to Android's playback-capture API is planned.
+- Tested on an Android emulator and one phone, not yet on a real head unit.
+- Debug-signed: uninstall the old version before installing a newer build.
+
 ## [1.3.0-beta.1] - 2026-09-15
 
 **Windows build, beta.** First Windows release — a `carozerra.exe` attached

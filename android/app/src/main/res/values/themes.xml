@@ -1,0 +1,5 @@
+<resources>
+    <style name="Theme.Carozerra" parent="android:Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+</resources>
