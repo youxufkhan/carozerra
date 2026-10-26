@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Web player: a "Support" button next to "Download for Android", linking to [Patreon](https://www.patreon.com/youxufkhan). Clicks are counted as a GA4 `support_click` event. `.github/FUNDING.yml` adds GitHub's Sponsor button to the repo.
+
 ### Changed
 - Packaging: dropped the unused `python3-numpy` dependency from the `.deb` and the run-from-source instructions. Nothing imports it.
 
