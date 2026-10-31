@@ -146,11 +146,13 @@ class WebPlayer(unittest.TestCase):
         self.page.keyboard.press('Escape')
         self.page.set_viewport_size({'width': 320, 'height': 720})
         self.page.locator('#mobileMenu > summary').click()
-        self.page.get_by_role('button', name='About Carozerra').click()
-        expect(self.page.locator('#about')).to_be_visible()
         self.page.keyboard.press('Escape')
         self.assertFalse(self.page.locator('#mobileMenu').evaluate('(el)=>el.open'))
         expect(self.page.locator('#mobileMenu > summary')).to_be_focused()
+        self.page.locator('#mobileMenu > summary').click()
+        self.page.get_by_role('link', name='About Carozerra').click()
+        expect(self.page.locator('#about h2').first).to_be_in_viewport()
+        self.assertFalse(self.page.locator('#mobileMenu').evaluate('(el)=>el.open'))
 
     def test_reduced_motion_does_not_fetch_hover_previews(self):
         self.page.emulate_media(reduced_motion='reduce')

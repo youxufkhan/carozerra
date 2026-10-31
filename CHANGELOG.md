@@ -10,7 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Web player: a "Support" button next to "Download for Android", linking to [Patreon](https://www.patreon.com/youxufkhan). Clicks are counted as a GA4 `support_click` event. `.github/FUNDING.yml` adds GitHub's Sponsor button to the repo.
 
+- Web player: search and share metadata — a canonical URL, Open Graph/Twitter card tags with a 1200×630 preview image (`og.jpg`), schema.org JSON-LD (web app, desktop/Android apps, author), a favicon, and `sitemap.xml`.
+- Web player: a footer note that Carozerra is free, open source (MIT), and an unofficial fan project not affiliated with Pioneer.
+
 ### Changed
+- Web player: the About text is now a visible section below the collection ("What is an .lkd file?", how to play or convert one, desktop and Android apps) instead of a pop-up; the About links jump to it. The title, description, H1 and intro now say what the page does: an unofficial, free player for Pioneer OEL `.lkd` animations.
+- Web player: the faceplate is served as `pioneer.webp` (127 KB) instead of `pioneer.png` (992 KB), cutting page weight by about two thirds.
+- Web player: the privacy note now mentions that visits and download clicks are counted with Google Analytics.
 - Packaging: dropped the unused `python3-numpy` dependency from the `.deb` and the run-from-source instructions. Nothing imports it.
 
 ## [1.3.0-beta.2] - 2026-09-26

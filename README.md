@@ -69,10 +69,11 @@ the output) are available via the Export buttons.
 file in the repo.
 
 To preview locally: `python3 -m http.server -d web 8000`, then open
-`http://localhost:8000`. (`assets/pioneer.png`, `assets/clips/*.lkd` and
-`CHANGELOG.md` need to be copied into `web/pioneer.png` / `web/clips/` /
-`web/CHANGELOG.md` first — the CI workflow does this automatically at deploy
-time; see `.github/workflows/pages.yml`.)
+`http://localhost:8000`. (`assets/clips/*.lkd` and `CHANGELOG.md` need to be
+copied into `web/clips/` / `web/CHANGELOG.md` first — the CI workflow does this
+automatically at deploy time; see `.github/workflows/pages.yml`. The web
+faceplate is `web/pioneer.webp`, a WebP copy of `assets/pioneer.png`; regenerate
+it if the PNG changes.)
 
 The web player uses a graphite and silver palette with locally hosted IBM Plex
 Sans. On phones, it opens with an enlarged animation view; **View full stereo**
@@ -325,11 +326,12 @@ usable in freeware software with credit — terms in
 carozerra/
 ├── web/                # GitHub Pages player — decodes .lkd fully client-side
 │   ├── index.html
+│   ├── pioneer.webp      # WebP copy of assets/pioneer.png (the page's LCP image)
 │   └── gifenc.esm.js     # vendored GIF encoder (mattdesl/gifenc, MIT) used by GIF export
 ├── carozerra.py         # Linux desktop visualizer (PyQt6)
 ├── decode.py             # .lkd decoder — CLI + importable library
 ├── assets/
-│   ├── pioneer.png        # faceplate cutout, shared by web + desktop
+│   ├── pioneer.png        # faceplate cutout, shared by desktop + Android (web uses a WebP copy)
 │   ├── clips/               # the 83 preloaded .lkd animations (movies, bgv, bgp, level meters, color)
 │   └── readme/                # this README's hero SVG + proof screenshots
 ├── reference/              # provenance only — not used by any code

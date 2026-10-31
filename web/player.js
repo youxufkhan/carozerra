@@ -965,23 +965,9 @@ clog.onclick = (e) => {
   if (e.target === clog) closeChangelog();
 }; // backdrop only, not the sheet
 clog.addEventListener("close", () => $("#clogOpen").focus());
-const about = $("#about");
-let aboutOpener = null;
-document.querySelectorAll("[data-about]").forEach(
-  (button) =>
-    (button.onclick = () => {
-      aboutOpener = button.closest("#mobileMenu")
-        ? $("#mobileMenu > summary")
-        : button;
-      $("#mobileMenu").open = false;
-      about.showModal();
-    }),
-);
-about.addEventListener("close", () => aboutOpener?.focus());
-$("[data-close-about]").onclick = () => about.close();
-about.onclick = (e) => {
-  if (e.target === about) about.close();
-};
+// Close after the link navigates: hiding it mid-click cancels the jump.
+$("[data-close-menu]").onclick = () =>
+  setTimeout(() => ($("#mobileMenu").open = false));
 for (const details of document.querySelectorAll("details")) {
   details.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {

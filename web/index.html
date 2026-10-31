@@ -6,9 +6,84 @@
     <meta name="theme-color" content="#15191c" />
     <meta
       name="description"
-      content="Explore the animations from Pioneer’s OEL car stereo displays. Play .lkd files in your browser and export them as GIF or WebM."
+      content="Free, unofficial player for Pioneer OEL car stereo animations. Play 83 classic clips or your own .lkd files in your browser and save them as GIF or WebM."
     />
-    <title>Carozerra | Pioneer OEL animations</title>
+    <title>Unofficial .lkd player for Pioneer OEL animations | Carozerra</title>
+    <link rel="canonical" href="https://youxufkhan.github.io/carozerra/" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Carozerra" />
+    <meta
+      property="og:title"
+      content="Unofficial .lkd player for Pioneer OEL animations"
+    />
+    <meta
+      property="og:description"
+      content="Play 83 classic Pioneer OEL car stereo animations or your own .lkd files in your browser. Save them as GIF or WebM."
+    />
+    <meta property="og:url" content="https://youxufkhan.github.io/carozerra/" />
+    <meta
+      property="og:image"
+      content="https://youxufkhan.github.io/carozerra/og.jpg"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="A Pioneer DEH-P7600MP faceplate playing an OEL animation in the Carozerra web player"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://youxufkhan.github.io/carozerra/#website",
+            "url": "https://youxufkhan.github.io/carozerra/",
+            "name": "Carozerra",
+            "inLanguage": "en",
+            "publisher": { "@id": "https://yousufkhan.uk/#person" }
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://youxufkhan.github.io/carozerra/#webapp",
+            "name": "Carozerra",
+            "url": "https://youxufkhan.github.io/carozerra/",
+            "description": "Unofficial browser-based player for Pioneer OEL car stereo display animations (.lkd files), with 83 built-in clips and GIF and WebM export. Files are decoded locally in the browser.",
+            "applicationCategory": "MultimediaApplication",
+            "operatingSystem": "Any (modern web browser)",
+            "isAccessibleForFree": true,
+            "license": "https://opensource.org/licenses/MIT",
+            "isPartOf": { "@id": "https://youxufkhan.github.io/carozerra/#website" },
+            "author": { "@id": "https://yousufkhan.uk/#person" },
+            "sameAs": ["https://github.com/youxufkhan/carozerra"],
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://youxufkhan.github.io/carozerra/#apps",
+            "name": "Carozerra desktop and Android apps",
+            "url": "https://github.com/youxufkhan/carozerra/releases",
+            "downloadUrl": "https://github.com/youxufkhan/carozerra/releases",
+            "applicationCategory": "MultimediaApplication",
+            "operatingSystem": "Linux, Windows, Android 10 or later",
+            "releaseNotes": "https://github.com/youxufkhan/carozerra/blob/main/CHANGELOG.md",
+            "isAccessibleForFree": true,
+            "license": "https://opensource.org/licenses/MIT",
+            "author": { "@id": "https://yousufkhan.uk/#person" },
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+          },
+          {
+            "@type": "Person",
+            "@id": "https://yousufkhan.uk/#person",
+            "name": "Yousuf Khan",
+            "url": "https://yousufkhan.uk",
+            "sameAs": ["https://github.com/youxufkhan"]
+          }
+        ]
+      }
+    </script>
     <link
       rel="preload"
       href="fonts/ibm-plex-sans-regular.woff2"
@@ -97,8 +172,8 @@
       >
       <div class="header-actions">
         <nav class="site-nav" aria-label="Main navigation">
-          <button type="button" data-about>
-            <svg
+          <a href="#about"
+            ><svg
               class="ui-icon"
               viewBox="0 0 24 24"
               fill="none"
@@ -109,8 +184,8 @@
               aria-hidden="true"
             >
               <use href="#icon-info" /></svg
-            >About
-          </button>
+            >About</a
+          >
           <a
             href="https://github.com/youxufkhan/carozerra"
             target="_blank"
@@ -183,8 +258,8 @@
             ><span class="sr-only">Menu</span>
           </summary>
           <nav aria-label="Mobile navigation">
-            <button type="button" data-about>
-              <svg
+            <a href="#about" data-close-menu
+              ><svg
                 class="ui-icon"
                 viewBox="0 0 24 24"
                 fill="none"
@@ -195,8 +270,8 @@
                 aria-hidden="true"
               >
                 <use href="#icon-info" /></svg
-              >About Carozerra
-            </button>
+              >About Carozerra</a
+            >
             <a
               class="download-badge"
               data-android
@@ -288,10 +363,11 @@
     </header>
     <main class="shell" id="main" tabindex="-1">
       <section class="intro" aria-labelledby="pageTitle">
-        <h1 id="pageTitle">Your old dashboard, playing again.</h1>
+        <h1 id="pageTitle">Your old Pioneer OEL display, playing again.</h1>
         <p>
-          Explore the animations from Pioneer’s OEL displays.<br />Choose a clip
-          and watch it on the original stereo.
+          Carozerra is a free, open-source, unofficial player for the .lkd
+          animations from Pioneer’s OEL car stereos. Pick one of 83 clips or
+          open your own files, then save any animation as a GIF or WebM.
         </p>
       </section>
       <section class="player" aria-label="Animation player">
@@ -299,7 +375,7 @@
           <img
             class="face"
             alt="Pioneer DEH-P7600MP car stereo"
-            src="pioneer.png"
+            src="pioneer.webp"
             fetchpriority="high"
           />
           <div
@@ -529,7 +605,51 @@
         </div>
         <input type="file" id="file" accept=".lkd" multiple hidden />
         <p class="privacy">
-          Your animation files are decoded on your device. They aren’t uploaded.
+          Your animation files are decoded on your device and never uploaded.
+          The site counts visits and download clicks with Google Analytics.
+        </p>
+      </section>
+      <section class="about" id="about" aria-labelledby="aboutTitle">
+        <h2 id="aboutTitle">What is an .lkd file?</h2>
+        <p>
+          Some older Pioneer car stereos, such as the DEH-P7600MP, had tiny
+          animated worlds in their blue OEL displays: dolphins, mountains,
+          racing cars, and more. Owners could load custom animations from a CD
+          or over a PC link, and those animations were stored as .lkd files
+          that no current software opens.
+        </p>
+        <p>
+          An .lkd file is a thin wrapper around standard formats: a 20-byte
+          header, then a gzip-compressed TAR archive holding one bitmap. That
+          bitmap is 60 frames of 256 × 64 pixels stacked on top of each other.
+          Carozerra unpacks it in your browser and plays it on a DEH-P7600MP
+          faceplate, so your files never leave your device.
+        </p>
+        <h2>How to play or convert an .lkd file</h2>
+        <p>
+          Choose one of the 83 built-in clips, or open .lkd files from your own
+          discs. You can change the speed, step through all 60 frames, and save
+          any animation as a GIF or WebM.
+        </p>
+        <h2>Desktop and Android apps</h2>
+        <p>
+          The same player runs as a desktop app for Linux and Windows, with the
+          stereo’s own controls wired to real actions, and as an Android app
+          for aftermarket head units. The Windows and Android builds are beta
+          releases.
+          <a
+            href="https://github.com/youxufkhan/carozerra/releases"
+            target="_blank"
+            rel="noopener"
+            >Downloads on GitHub</a
+          >
+          ·
+          <a
+            href="https://github.com/youxufkhan/carozerra"
+            target="_blank"
+            rel="noopener"
+            >Source code and format notes</a
+          >
         </p>
       </section>
     </main>
@@ -628,54 +748,12 @@
           >yousufkhan.uk</a
         >
       </p>
+      <p class="disclaimer">
+        Free and open source (MIT). Carozerra is an unofficial fan project, not
+        affiliated with or endorsed by Pioneer. Pioneer and DEH-P7600MP are
+        trademarks of their respective owner.
+      </p>
     </footer>
-    <dialog id="about" aria-labelledby="aboutTitle">
-      <header>
-        <h2 id="aboutTitle">About Carozerra</h2>
-        <button
-          class="icon-button"
-          type="button"
-          data-close-about
-          aria-label="Close about"
-        >
-          ×
-        </button>
-      </header>
-      <div class="body">
-        <p>
-          Some Pioneer car stereos had tiny animated worlds in their OEL
-          displays: dolphins, mountains, racing cars, and more. Custom
-          animations were stored in .lkd files.
-        </p>
-        <p>
-          Carozerra decodes those files and plays them on a Pioneer DEH-P7600MP
-          faceplate in your browser. Choose a clip from the collection, or open
-          files from your own discs.
-        </p>
-        <p>
-          You can adjust the speed, step through frames, and export an animation
-          as GIF or WebM. Files you open are processed on your device.
-        </p>
-        <p>
-          The
-          <a
-            href="https://github.com/youxufkhan/carozerra/releases"
-            target="_blank"
-            rel="noopener"
-            >Android and desktop apps</a
-          >
-          are also available. Android and Windows builds are beta releases.
-        </p>
-        <p>
-          <a
-            href="https://github.com/youxufkhan/carozerra"
-            target="_blank"
-            rel="noopener"
-            >Source code and format documentation</a
-          >
-        </p>
-      </div>
-    </dialog>
     <dialog id="clog" aria-labelledby="clogTitle">
       <header>
         <h2 id="clogTitle">Changelog</h2>

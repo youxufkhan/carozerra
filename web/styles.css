@@ -745,6 +745,32 @@ kbd {
   color: var(--muted);
   margin: 0 0 32px;
 }
+.about {
+  max-width: 70ch;
+  padding-bottom: 32px;
+  scroll-margin-top: 16px;
+}
+.about h2 {
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: -0.3px;
+  margin: 24px 0 8px;
+}
+.about h2:first-child {
+  margin-top: 0;
+}
+.about p {
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+.about a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.footer .disclaimer {
+  flex-basis: 100%;
+  font-size: 12px;
+}
 .footer {
   display: flex;
   flex-wrap: wrap;

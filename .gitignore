@@ -20,7 +20,6 @@ packaging/carozerra.ico
 # web/ assets are staged from assets/ (and CHANGELOG.md) at deploy time
 # (see .github/workflows/pages.yml) and for local preview (see README) —
 # not duplicated in git.
-web/pioneer.png
 web/clips/
 web/CHANGELOG.md
 
