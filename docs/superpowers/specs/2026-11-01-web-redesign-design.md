@@ -1,6 +1,6 @@
 # Carozerra web redesign
 
-Status: proposed design, awaiting user approval.
+Status: approved by the user in chat; implemented on `codex/web-redesign`.
 
 ## Intent
 

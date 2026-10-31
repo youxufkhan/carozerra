@@ -54,8 +54,10 @@ waterfalls, leaping dolphins, etc.).
 
 Decodes fully client-side — `DecompressionStream` for gzip, an inline tar
 reader, a BMP parser to canvas. 83 built-in clips (movies, backgrounds, stills,
-level meters, and a full-color set — see `assets/clips/`) are preloaded and
-picked from a categorized gallery of preview thumbnails that animate on hover;
+level meters, and a full-color set — see `assets/clips/`) can be picked from
+a gallery with category filters. Small posters load as they enter view; full
+clips load when selected or intentionally previewed. Previews animate on hover
+or keyboard focus, respecting reduced-motion preferences;
 drag-and-drop (or click) still lets you load any other `.lkd` file — nothing is
 uploaded anywhere. GIF and WebM export (with the retro phosphor glow baked into
 the output) are available via the Export buttons.
@@ -71,6 +73,20 @@ To preview locally: `python3 -m http.server -d web 8000`, then open
 `CHANGELOG.md` need to be copied into `web/pioneer.png` / `web/clips/` /
 `web/CHANGELOG.md` first — the CI workflow does this automatically at deploy
 time; see `.github/workflows/pages.yml`.)
+
+The web player uses a graphite and silver palette with locally hosted IBM Plex
+Sans. On phones, it opens with an enlarged animation view; **View full stereo**
+switches to the faceplate without restarting playback. Speed, glow, and frame
+scrubbing are under **Playback settings**, and **Export** offers GIF and WebM.
+
+After changing bundled clips, regenerate the committed gallery posters with
+`python3 packaging/build-web-previews.py` (requires Pillow). The fonts and their
+license are in `web/fonts/`.
+
+With the local server running, browser checks can be run with
+`python3 tests/web_player.py` using Python's `playwright` package and Google
+Chrome at `/usr/bin/google-chrome`. Set `CAROZERRA_URL` to test another local
+server. Screenshots are written under `.superpowers/implementation/`.
 
 ## Desktop app (Linux / Debian)
 

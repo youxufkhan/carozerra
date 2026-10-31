@@ -30,6 +30,7 @@ found_discs/
 
 # local agent/tool state — never part of the project
 .claude/
+.superpowers/
 
 # OS
 .DS_Store
