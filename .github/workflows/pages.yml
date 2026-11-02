@@ -1,4 +1,4 @@
-name: Deploy web player
+name: Deploy web player and legacy redirect
 
 on:
   push:
@@ -7,6 +7,8 @@ on:
       - web/**
       - assets/**
       - CHANGELOG.md
+      - packaging/build-web.py
+      - packaging/pages-redirect/**
       - .github/workflows/pages.yml
   workflow_dispatch:
 
@@ -28,17 +30,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Stage shared assets into web/
+      - name: Wait for this commit to be live on Cloudflare Pages
+        env:
+          EXPECTED_REVISION: ${{ github.sha }}
         run: |
-          mkdir -p web/clips
-          cp assets/clips/*.lkd web/clips/
-          cp CHANGELOG.md web/CHANGELOG.md   # fetched at runtime by the in-page changelog modal
+          for attempt in $(seq 1 60); do
+            revision=$(curl -fsS --max-time 15 "https://carozerra.yousufkhan.uk/build-revision.txt?check=$EXPECTED_REVISION" || true)
+            if [ "$revision" = "$EXPECTED_REVISION" ]; then
+              curl --fail --max-time 30 https://carozerra.yousufkhan.uk/ -o /dev/null
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Cloudflare deployment is not ready; leaving the existing GitHub Pages site intact."
+          exit 1
+
+      - name: Stage the GitHub Pages redirect
+        run: |
+          mkdir -p dist/redirect
+          cp packaging/pages-redirect/index.html dist/redirect/index.html
+          cp packaging/pages-redirect/index.html dist/redirect/404.html
+          touch dist/redirect/.nojekyll
 
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: web
+          path: dist/redirect
 
       - id: deployment
         uses: actions/deploy-pages@v4

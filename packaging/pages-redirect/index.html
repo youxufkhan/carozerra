@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Carozerra has moved</title>
+    <link rel="canonical" href="https://carozerra.yousufkhan.uk/" />
+    <script>
+      const target = new URL("https://carozerra.yousufkhan.uk/");
+      const path = location.pathname.replace(/^\/carozerra(?:\/|$)/, "/");
+      target.pathname = path === "/index.html" ? "/" : path;
+      target.search = location.search;
+      target.hash = location.hash;
+      location.replace(target.href);
+    </script>
+    <noscript>
+      <meta http-equiv="refresh" content="0; url=https://carozerra.yousufkhan.uk/" />
+    </noscript>
+  </head>
+  <body>
+    <p>Carozerra has moved to <a href="https://carozerra.yousufkhan.uk/">carozerra.yousufkhan.uk</a>.</p>
+  </body>
+</html>

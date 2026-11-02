@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/youxufkhan/carozerra/releases/latest"><img src="https://img.shields.io/github/v/release/youxufkhan/carozerra?label=release&color=12e0ff" alt="Latest release"></a>
-  <a href="https://youxufkhan.github.io/carozerra/"><img src="https://img.shields.io/badge/demo-live-12e0ff" alt="Live demo"></a>
+  <a href="https://carozerra.yousufkhan.uk/"><img src="https://img.shields.io/badge/demo-live-12e0ff" alt="Live demo"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/youxufkhan/carozerra?color=12e0ff" alt="License"></a>
 </p>
 
@@ -13,12 +13,12 @@
   <a href="./ROADMAP.md">Roadmap</a>
 </p>
 <p align="center">
-  <a href="https://youxufkhan.github.io/carozerra/">
+  <a href="https://carozerra.yousufkhan.uk/">
     <img src="./assets/readme/proof-web.png" width="100%" alt="The live web player: a Pioneer DEH-P7600MP faceplate with a decoded .lkd animation glowing cyan on its OEL screen">
   </a>
 </p>
 
-<p align="center"><sub>Live and playing right now at <a href="https://youxufkhan.github.io/carozerra/">youxufkhan.github.io/carozerra</a> — click the image, no install.</sub></p>
+<p align="center"><sub>Live and playing right now at <a href="https://carozerra.yousufkhan.uk/">carozerra.yousufkhan.uk</a> — click the image, no install.</sub></p>
 
 ## What it is
 
@@ -68,12 +68,37 @@ the output) are available via the Export buttons.
 `CHANGELOG.md` in a modal — fetched at click time, so it never drifts from the
 file in the repo.
 
-To preview locally: `python3 -m http.server -d web 8000`, then open
-`http://localhost:8000`. (`assets/clips/*.lkd` and `CHANGELOG.md` need to be
-copied into `web/clips/` / `web/CHANGELOG.md` first — the CI workflow does this
-automatically at deploy time; see `.github/workflows/pages.yml`. The web
-faceplate is `web/pioneer.webp`, a WebP copy of `assets/pioneer.png`; regenerate
-it if the PNG changes.)
+To build and preview locally:
+
+```bash
+python3 packaging/build-web.py
+python3 -m http.server -d dist/web 8000
+```
+
+Open `http://localhost:8000`. The build stages the player, faceplate, all clips,
+and changelog into `dist/web/`. The faceplate is `web/pioneer.webp`, a
+committed WebP copy of `assets/pioneer.png`; regenerate it if the PNG changes.
+
+The live player is hosted on **Cloudflare Pages** at
+[carozerra.yousufkhan.uk](https://carozerra.yousufkhan.uk/).
+The Cloudflare Pages project `carozerra` is connected to this GitHub repository:
+production branch `main`, build command `python3 packaging/build-web.py`, and
+output directory `dist/web`. Cloudflare manages the custom domain's DNS and
+HTTPS certificate. Every push to `main` deploys through Cloudflare's native Git
+integration; no deployment token or Node dependencies are needed.
+
+[The old GitHub Pages address](https://youxufkhan.github.io/carozerra/) stays
+online as a small browser redirect, preserving paths, query parameters, and
+fragments. Its no-JavaScript fallback redirects to the new homepage. GitHub
+Pages does not provide configurable HTTP redirects, so this is not an HTTP 301.
+The redirect is published only after the same commit is live on Cloudflare.
+The custom domain belongs to the Cloudflare Pages project; do not assign it to the
+GitHub Pages site.
+
+The player advertises its new canonical URL, `robots.txt`, and `sitemap.xml`.
+The existing Google Analytics measurement ID is unchanged. After migrating,
+update the Analytics web stream URL and add/verify the new URL in Search
+Console, then submit `https://carozerra.yousufkhan.uk/sitemap.xml`.
 
 The web player uses a graphite and silver palette with locally hosted IBM Plex
 Sans. On phones, it opens with an enlarged animation view; **View full stereo**
@@ -270,7 +295,7 @@ Output goes to `out/` (gitignored — fully regenerable, not shipped).
 
 ## Releasing
 
-Order matters: `pages.yml` triggers on pushes to `main`, not on tags, so the
+Order matters: Cloudflare Pages deploys pushes to `main`, not tags, so the
 website must go out before (or with) the tag — otherwise a new Release ships
 alongside a site still serving the previous player.
 
@@ -324,7 +349,7 @@ usable in freeware software with credit — terms in
 
 ```
 carozerra/
-├── web/                # GitHub Pages player — decodes .lkd fully client-side
+├── web/                # Cloudflare Pages player — decodes .lkd fully client-side
 │   ├── index.html
 │   ├── pioneer.webp      # WebP copy of assets/pioneer.png (the page's LCP image)
 │   └── gifenc.esm.js     # vendored GIF encoder (mattdesl/gifenc, MIT) used by GIF export
@@ -341,7 +366,7 @@ carozerra/
 │   ├── build-deb.sh         # -> packaging/dist/carozerra_<version>_all.deb
 │   └── debian/                # control file template + .desktop entry
 └── .github/workflows/
-    ├── pages.yml               # deploys web/ whenever web/** or assets/** change
+    ├── pages.yml               # waits for Cloudflare, then deploys GitHub Pages redirect
     ├── packaging-check.yml      # build-validates the .deb whenever app/packaging files change
     └── release.yml               # builds + attaches the .deb to a GitHub Release on every v* tag
 ```
