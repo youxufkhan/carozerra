@@ -562,6 +562,12 @@
           aria-atomic="true"
         ></p>
       </section>
+      <aside class="advertisement" id="bannerAd" aria-label="Advertisement">
+        <p class="ad-label">Advertisement</p>
+        <div class="ad-banner-slot">
+          <iframe id="adBanner" title="Advertisement banner" width="320" height="50" scrolling="no"></iframe>
+        </div>
+      </aside>
       <section class="collection" aria-labelledby="collectionTitle">
         <div class="collection-header">
           <h2 id="collectionTitle">Animations</h2>
@@ -607,6 +613,7 @@
         <p class="privacy">
           Your animation files are decoded on your device and never uploaded.
           The site counts visits and download clicks with Google Analytics.
+          Third-party advertisements are served by Adsterra.
         </p>
       </section>
       <section class="about" id="about" aria-labelledby="aboutTitle">
@@ -652,6 +659,10 @@
           >
         </p>
       </section>
+      <aside class="advertisement ad-native" id="nativeAd" aria-label="Advertisement">
+        <p class="ad-label">Advertisement</p>
+        <div id="container-ea3a9dd4947ab23327f651a2e40a6278"></div>
+      </aside>
     </main>
     <footer class="footer shell">
       <div class="footer-links">
@@ -769,5 +780,6 @@
       <div class="body" id="clogBody"></div>
     </dialog>
     <script type="module" src="player.js"></script>
+    <script type="module" src="ads.js" data-cfasync="false"></script>
   </body>
 </html>

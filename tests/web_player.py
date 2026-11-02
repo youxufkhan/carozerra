@@ -25,6 +25,15 @@ class WebPlayer(unittest.TestCase):
         self.context = self.browser.new_context(viewport={'width': 1280, 'height': 900}, accept_downloads=True)
         self.context.route('https://www.googletagmanager.com/**', lambda route: route.abort())
         self.context.route('https://api.github.com/**', lambda route: route.abort())
+        self.ad_requests = []
+        def mock_ad(route):
+            self.ad_requests.append(route.request.url)
+            if '/21/' in route.request.url:
+                body = "document.querySelector('[id^=container-]').textContent = 'Test native ad';"
+            else:
+                body = "document.write('<iframe title=\"Test banner\" width=\"' + atOptions.width + '\" height=\"' + atOptions.height + '\"></iframe>');"
+            route.fulfill(content_type='application/javascript', body=body)
+        self.context.route('https://bauval.org/**', mock_ad)
         self.page = self.context.new_page()
         self.errors = []
         self.page.on('pageerror', lambda error: self.errors.append(str(error)))
@@ -34,6 +43,31 @@ class WebPlayer(unittest.TestCase):
     def tearDown(self):
         self.assertEqual(self.errors, [])
         self.context.close()
+
+    def test_ads_choose_one_banner_for_available_width(self):
+        banner = self.page.locator('#adBanner')
+        banner.scroll_into_view_if_needed(timeout=2000)
+        expect(banner).to_have_attribute('width', '728')
+        self.page.wait_for_function("document.querySelector('#adBanner').contentDocument.querySelector('iframe') !== null")
+        self.assertEqual(len([u for u in self.ad_requests if '/22/' in u]), 1)
+        self.assertTrue(any('6d33916843669043d309748d1f48ef51' in u for u in self.ad_requests))
+        for width in [320, 390, 768]:
+            self.page.set_viewport_size({'width': width, 'height': 900})
+            expect(banner).to_have_attribute('width', '320')
+            self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth <= innerWidth'), width)
+        self.page.wait_for_function("document.querySelector('#adBanner').contentDocument.querySelector('iframe') !== null")
+        self.assertEqual(len([u for u in self.ad_requests if '/22/' in u]), 2)
+        self.assertTrue(any('0c4d2ae1997df130389651f3751f9bf1' in u for u in self.ad_requests))
+        self.page.locator('#nativeAd').scroll_into_view_if_needed()
+        expect(self.page.locator('#container-ea3a9dd4947ab23327f651a2e40a6278')).to_have_text('Test native ad')
+        self.assertEqual(len([u for u in self.ad_requests if '/21/' in u]), 1)
+
+    def test_blocked_ads_leave_player_usable(self):
+        self.context.route('https://bauval.org/**', lambda route: route.abort())
+        self.page.reload()
+        self.page.wait_for_function("document.querySelector('#meta').textContent.includes('movie1.lkd')")
+        self.page.get_by_role('button', name='Next animation').click()
+        expect(self.page.locator('#meta')).to_contain_text('movie2.lkd')
 
     def test_category_browsing_preserves_player_and_navigation_reveals_clip(self):
         self.page.get_by_role('button', name='Backgrounds', exact=True).click(timeout=2000)

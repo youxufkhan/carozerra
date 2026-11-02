@@ -87,6 +87,34 @@ button:hover:not(:disabled) {
   width: min(1040px, calc(100% - 80px));
   margin-inline: auto;
 }
+.advertisement {
+  margin-block: 32px;
+  text-align: center;
+}
+.ad-label {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.ad-banner-slot {
+  display: grid;
+  place-items: center;
+  min-height: 90px;
+  width: min(728px, 100vw);
+  margin-left: 50%;
+  transform: translateX(-50%);
+}
+#adBanner {
+  display: block;
+  border: 0;
+}
+.ad-native {
+  min-height: 280px;
+  max-width: 100%;
+  overflow-x: auto;
+}
 .skip {
   position: fixed;
   top: 8px;

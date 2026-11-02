@@ -100,6 +100,15 @@ The existing Google Analytics measurement ID is unchanged. After migrating,
 update the Analytics web stream URL and add/verify the new URL in Search
 Console, then submit `https://carozerra.yousufkhan.uk/sitemap.xml`.
 
+Adsterra placements are configured in `web/ads.js`: one banner below the player
+(728×90 on viewports at least 808px wide, otherwise 320×50) and a native unit
+below About. Each placement loads when it approaches the viewport. The banner
+runs in its own iframe so the provider's `atOptions` global stays separate from
+the player; crossing the desktop breakpoint replaces it with the other size.
+The 300×250 unit is unused. Browser checks mock ad scripts, so they do not
+generate live ad impressions. Verify actual delivery and impression reporting
+on the production domain after deployment.
+
 The web player uses a graphite and silver palette with locally hosted IBM Plex
 Sans. On phones, it opens with an enlarged animation view; **View full stereo**
 switches to the faceplate without restarting playback. Speed, glow, and frame
